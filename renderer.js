@@ -1,5 +1,5 @@
 function getIconUrl(app) {
-  return `https://portable-linux-apps.github.io/icons/${app}.png`;
+  return `https://github.com/Portable-Linux-Apps/Portable-Linux-Apps.github.io/tree/main/icons${app}.png`;
 }
 
 const appsDiv = document.getElementById('apps');
@@ -13,7 +13,7 @@ const resultDiv = document.getElementById('result');
     const card = document.createElement('div');
     card.className = 'card';
     card.innerHTML = `
-      <img src="${getIconUrl(name)}" alt="${label}" onerror="this.src='https://portable-linux-apps.github.io/icons/default.png'">
+      <img src="${getIconUrl(name)}" alt="${label}" onerror="this.src='https://github.com/Portable-Linux-Apps/Portable-Linux-Apps.github.io/tree/main/icons/default.png'">
       <div>${label}</div>
       <button onclick="amAction('install','${name}')">Installer</button>
       <button onclick="amAction('uninstall','${name}')">Désinstaller</button>
