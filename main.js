@@ -20,9 +20,9 @@ app.whenReady().then(createWindow);
 ipcMain.handle('am-action', async (event, action, software) => {
   let command = '';
   if (action === 'install') {
-    command = `am -i "${software}"`;
+    command = `appman -i "${software}"`;
   } else if (action === 'uninstall') {
-    command = `am -r "${software}"`;
+    command = `appman -r "${software}"`;
   }
   return new Promise((resolve) => {
     exec(command, (err, stdout, stderr) => {
@@ -34,7 +34,7 @@ ipcMain.handle('am-action', async (event, action, software) => {
 
 ipcMain.handle('list-apps', async () => {
   return new Promise((resolve) => {
-    exec('am -l', (err, stdout, stderr) => {
+    exec('appman -l', (err, stdout, stderr) => {
       if (err) resolve([]);
       else {
         const apps = stdout.split('\n')
