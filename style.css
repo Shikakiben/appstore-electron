@@ -1,0 +1,24 @@
+body { font-family: sans-serif; background: #fafafa; margin: 0; padding: 1em; }
+h1   { text-align: center; }
+.grid {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 16px;
+  justify-content: center;
+}
+.card {
+  border: 1px solid #ccc;
+  padding: 12px;
+  border-radius: 8px;
+  background: #fff;
+  width: 180px;
+  text-align: center;
+  box-shadow: 1px 1px 4px #eee;
+}
+.card img {
+  width: 64px; height: 64px; margin-bottom: 8px; border-radius: 10px;
+}
+.card button {
+  margin: 4px; padding: 4px 12px;
+}
+pre#result { margin-top: 2em; background: #222; color: #fff; padding: 1em; border-radius: 6px; max-width: 900px; margin-left: auto; margin-right: auto;}
