@@ -38,7 +38,7 @@ ipcMain.handle('am-action', async (event, action, software) => {
   if (action === 'install') {
     command = `${pm} -i "${software}"`;
   } else if (action === 'uninstall') {
-    command = `${pm} -r "${software}"`;
+    command = `${pm} -R "${software}"`;
   }
   return new Promise((resolve) => {
     exec(command, (err, stdout, stderr) => {
