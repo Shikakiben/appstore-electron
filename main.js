@@ -2,6 +2,19 @@ const { app, BrowserWindow, ipcMain } = require('electron');
 const path = require('path');
 const { exec } = require('child_process');
 
+// Fonction pour détecter le gestionnaire dispo
+const detectPackageManager = () => {
+  return new Promise((resolve) => {
+    exec('command -v am', (err) => {
+      if (!err) return resolve('am');
+      exec('command -v appman', (err2) => {
+        if (!err2) return resolve('appman');
+        resolve(null); // aucun trouvé
+      });
+    });
+  });
+};
+
 function createWindow () {
   const win = new BrowserWindow({
     width: 1100,
@@ -17,12 +30,15 @@ function createWindow () {
 
 app.whenReady().then(createWindow);
 
+// Handler pour installer/désinstaller
 ipcMain.handle('am-action', async (event, action, software) => {
+  const pm = await detectPackageManager();
+  if (!pm) return "Aucun gestionnaire 'am' ou 'appman' trouvé sur ce système.";
   let command = '';
   if (action === 'install') {
-    command = `appman -i "${software}"`;
+    command = `${pm} -i "${software}"`;
   } else if (action === 'uninstall') {
-    command = `appman -r "${software}"`;
+    command = `${pm} -r "${software}"`;
   }
   return new Promise((resolve) => {
     exec(command, (err, stdout, stderr) => {
@@ -32,20 +48,19 @@ ipcMain.handle('am-action', async (event, action, software) => {
   });
 });
 
+// Handler pour lister les apps
 ipcMain.handle('list-apps', async () => {
+  const pm = await detectPackageManager();
+  if (!pm) return [];
+  const listCmd = `${pm} -l`;
   return new Promise((resolve) => {
-    exec('appman -l', (err, stdout, stderr) => {
+    exec(listCmd, (err, stdout, stderr) => {
       if (err) return resolve([]);
       const apps = stdout
         .split('\n')
         .map(line => line.trim())
-        .filter(line => line.startsWith('◆')) // Garde seulement les lignes commençant par "◆"
+        .filter(line => line.startsWith('◆'))
         .map(line => {
-          // Enlève le "◆", puis récupère le nom avant le premier espace, deux-points ou parenthèse
-          // Exemples :
-          // ◆ 0ad : ...      --> "0ad"
-          // ◆ abiword : ...  --> "abiword"
-          // ◆ gimp 3.0.4     --> "gimp"
           let rest = line.slice(1).trim();
           // Si la ligne contient ":", coupe avant
           if (rest.indexOf(':') !== -1) rest = rest.split(':')[0].trim();
@@ -53,8 +68,9 @@ ipcMain.handle('list-apps', async () => {
           const name = rest.split(' ')[0].trim();
           return name;
         })
-        .filter(name => !!name && name.length <= 30); // Optionnel : filtre noms trop longs/vides
-      //console.log("Apps envoyées au renderer:", apps);
+        .filter(name => !!name && name.length <= 30);
+      // Tu peux décommenter la ligne ci-dessous pour debugguer
+      // console.log("Apps envoyées au renderer:", apps);
       resolve(apps);
     });
   });
