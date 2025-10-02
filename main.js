@@ -35,13 +35,27 @@ ipcMain.handle('am-action', async (event, action, software) => {
 ipcMain.handle('list-apps', async () => {
   return new Promise((resolve) => {
     exec('appman -l', (err, stdout, stderr) => {
-      if (err) resolve([]);
-      else {
-        const apps = stdout.split('\n')
-          .map(line => line.trim())
-          .filter(line => line.length > 0);
-        resolve(apps);
-      }
+      if (err) return resolve([]);
+      const apps = stdout
+        .split('\n')
+        .map(line => line.trim())
+        .filter(line => line.startsWith('◆')) // Garde seulement les lignes commençant par "◆"
+        .map(line => {
+          // Enlève le "◆", puis récupère le nom avant le premier espace, deux-points ou parenthèse
+          // Exemples :
+          // ◆ 0ad : ...      --> "0ad"
+          // ◆ abiword : ...  --> "abiword"
+          // ◆ gimp 3.0.4     --> "gimp"
+          let rest = line.slice(1).trim();
+          // Si la ligne contient ":", coupe avant
+          if (rest.indexOf(':') !== -1) rest = rest.split(':')[0].trim();
+          // Prend le premier mot (avant espace) comme nom court (pour les icônes)
+          const name = rest.split(' ')[0].trim();
+          return name;
+        })
+        .filter(name => !!name && name.length <= 30); // Optionnel : filtre noms trop longs/vides
+      //console.log("Apps envoyées au renderer:", apps);
+      resolve(apps);
     });
   });
 });
