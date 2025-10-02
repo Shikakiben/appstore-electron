@@ -1,83 +1,69 @@
-# AppStore Electron
+# AM-AppStore
 
-**AppStore Electron** est une application de bureau multiplateforme, construite avec [Electron](https://www.electronjs.org/), qui sert d’interface graphique simple pour installer, désinstaller et gérer des applications AppImage via [appman](https://github.com/AppImageCommunity/appman).
+**AM-AppStore** is an Electron-based application that serves as a graphical App Store for [AM](https://github.com/ivan-hc/AM). "AM"/"AppMan" is a set of scripts and modules for installing, updating, and managing AppImage packages and other portable formats on Linux.
 
----
-
-## Fonctionnalités
-
-- **Affichage d’un catalogue d’applications** disponibles via appman, avec icônes.
-- **Installation et désinstallation** d’apps en un clic.
-- **Recherche rapide** et tri des logiciels (à venir).
-- **Affichage des résultats et retour d’action** (succès/erreur).
+⚠️ **This project is not yet functional: it is under active development and some features may not work or may be incomplete.**
 
 ---
 
-## Prérequis
+## Features
+
+- **Displays a catalog of AppImage applications** available via AM/appman, with icons.
+- **One-click installation and removal** of AppImage applications.
+- **Fast search and sorting** of software (coming soon).
+- **Displays results and action feedback** (success/error).
+
+---
+
+## Requirements
 
 - [Node.js](https://nodejs.org/)
 - [npm](https://www.npmjs.com/)
 - [Electron](https://www.electronjs.org/)
-- [appman](https://github.com/AppImageCommunity/appman) installé et accessible dans le PATH système
+- [AM](https://github.com/ivan-hc/AM) installed and accessible in the system PATH
+- **Linux only** (AppImage management is not supported on Windows/Mac)
 
 ---
 
 ## Installation
 
-Clone ce dépôt :
+Clone this repository:
 
 ```bash
-git clone https://github.com/Portable-Linux-Apps/appstore-electron.git
-cd appstore-electron
+git clone https://github.com/Shikakiben/AM-AppStore-Test.git
+cd AM-AppStore
 npm install
 ```
 
 ---
 
-## Utilisation
+## Usage
 
-1. Assure-toi que `appman` est installé et fonctionnel (commande `appman -l` doit retourner la liste des applications).
-2. Lance l’application Electron :
+1. Make sure `AM` or `appman` is installed and functional (`am -l` or `appman -l` should return the list of applications).
+2. Launch the app:
 
 ```bash
 npm start
 ```
 
-3. Parcoure, installe ou désinstalle les applications de ton choix !
+3. Browse, install, or uninstall the AppImage applications of your choice!
 
 ---
 
 ## Architecture
 
-- **main.js** : Gère la fenêtre Electron, la communication avec `appman` et transmet la liste des applications au renderer.
-- **preload.js** : Sert de pont sécurisé entre le front (renderer) et le backend Electron.
-- **renderer.js** : Génère dynamiquement l’interface utilisateur, gère les actions et l’affichage des icônes.
+- **main.js**: Manages the Electron window, communicates with `AM`/`appman`, and sends the application list to the renderer.
+- **preload.js**: Provides a secure bridge between the frontend (renderer) and Electron's backend.
+- **renderer.js**: Dynamically generates the user interface, handles actions, and displays icons.
 
 ---
 
-## Notes
+## Acknowledgements
 
-- Les icônes sont récupérées automatiquement via le dépôt [Portable-Linux-Apps.github.io](https://github.com/Portable-Linux-Apps/Portable-Linux-Apps.github.io/tree/main/icons). Si une icône manque, une image par défaut est utilisée.
-- Le parsing actuel extrait le nom court de chaque application pour l’affichage et la correspondance avec les icônes.
-
----
-
-## Améliorations à venir
-
-- Recherche et filtrage d’applications
-- Affichage de la description complète des apps
-- Gestion avancée des erreurs
-- Amélioration du design
+Thanks to [Ivan](https://github.com/ivan-hc) and the [pkgforge community](https://github.com/pkgforge-dev) for their outstanding work on managing and distributing AppImages on Linux.
 
 ---
 
-## Contribuer
-
-Les contributions sont les bienvenues !  
-N’hésitez pas à ouvrir une issue ou à proposer une pull request.
-
----
-
-## Licence
+## License
 
 [MIT](./LICENSE)
