@@ -13,7 +13,7 @@ const resultDiv = document.getElementById('result');
     const card = document.createElement('div');
     card.className = 'card';
     card.innerHTML = `
-      <img src="${getIconUrl(name)}" alt="${label}" onerror="this.src='https://raw.githubusercontent.com/Portable-Linux-Apps/Portable-Linux-Apps.github.io/main/icons/default.png'">
+      <img src="${getIconUrl(name)}" alt="${label}" onerror="this.src='https://raw.githubusercontent.com/Portable-Linux-Apps/Portable-Linux-Apps.github.io/main/icons/blank.png'">
       <div>${label}</div>
       <button onclick="amAction('install','${name}')">Installer</button>
       <button onclick="amAction('uninstall','${name}')">Désinstaller</button>
