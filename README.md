@@ -31,7 +31,7 @@ Clone this repository:
 
 ```bash
 git clone https://github.com/Shikakiben/AM-AppStore-Test.git
-cd AM-AppStore
+cd AM-AppStore-Test
 npm install
 ```
 
