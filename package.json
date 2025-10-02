@@ -1,11 +1,11 @@
 {
-  "name": "appstore-electron",
+  "name": "AM-AppStore",
   "version": "1.0.0",
   "main": "main.js",
   "scripts": {
     "start": "electron ."
   },
   "devDependencies": {
-    "electron": "^28.2.4"
+    "electron": "^38.2.0"
   }
 }
