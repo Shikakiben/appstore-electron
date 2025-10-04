@@ -18,6 +18,8 @@ function getIconUrl(app) {
   window.addEventListener('resize', applyHeaderHeight);
   window.addEventListener('DOMContentLoaded', applyHeaderHeight);
   if (document.readyState !== 'loading') applyHeaderHeight();
+  // Forcer un léger délai pour aligner scroll-shell après styles
+  setTimeout(applyHeaderHeight, 50);
   // Gestion globale des erreurs pour debug visuel
   window.addEventListener('error', (ev) => {
     try {
@@ -45,6 +47,33 @@ const state = {
   activeCategory: 'all',
   viewMode: localStorage.getItem('viewMode') || 'grid'
 };
+
+// --- (Ré)ajout gestion changement de mode d'affichage ---
+function applyActiveModeButton() {
+  modeButtons.forEach(btn => {
+    const m = btn.getAttribute('data-mode');
+    const isActive = m === state.viewMode;
+    btn.classList.toggle('active', isActive);
+    btn.setAttribute('aria-pressed', isActive ? 'true' : 'false');
+  });
+}
+
+modeButtons.forEach(btn => {
+  btn.addEventListener('click', () => {
+    const mode = btn.getAttribute('data-mode');
+    if (!mode || mode === state.viewMode) return;
+    // Sécuriser valeur
+    if (!['grid','list','icons','cards'].includes(mode)) return;
+    state.viewMode = mode;
+    localStorage.setItem('viewMode', state.viewMode);
+    applyActiveModeButton();
+    // Re-rendu avec la liste filtrée actuelle
+    render(state.filtered);
+  });
+});
+
+// Appliquer état initial (ex: si localStorage != grid)
+applyActiveModeButton();
 
 const appsDiv = document.getElementById('apps');
 

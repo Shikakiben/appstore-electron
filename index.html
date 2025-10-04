@@ -142,62 +142,63 @@
       </div>
     </div>
   </header>
+  <div class="scroll-shell">
+    <nav class="tabs" role="tablist" aria-label="Catégories">
+      <button class="tab active" role="tab" aria-selected="true" data-category="all">Tout</button>
+      <button class="tab" role="tab" aria-selected="false" data-category="installed">Installées <span id="installedCount" class="badge">0</span></button>
+      <button class="tab" role="tab" aria-selected="false" data-category="updates">Mises à jour</button>
+    </nav>
 
-  <nav class="tabs" role="tablist" aria-label="Catégories">
-    <button class="tab active" role="tab" aria-selected="true" data-category="all">Tout</button>
-    <button class="tab" role="tab" aria-selected="false" data-category="installed">Installées <span id="installedCount" class="badge">0</span></button>
-    <button class="tab" role="tab" aria-selected="false" data-category="updates">Mises à jour</button>
-  </nav>
-
-  <main class="content">
-    <div id="apps" class="app-list" aria-live="polite" aria-busy="true"></div>
-    <section id="appDetails" class="app-details" hidden>
-      <button id="backToListBtn" class="btn btn-outline" style="margin-bottom:12px;">← Retour</button>
-      <div class="details-header">
-        <img id="detailsIcon" alt="Icône" />
-        <div class="details-head-text">
-          <h2 id="detailsName"></h2>
+    <main class="content">
+      <div id="apps" class="app-list" aria-live="polite" aria-busy="true"></div>
+      <section id="appDetails" class="app-details" hidden>
+        <button id="backToListBtn" class="btn btn-outline" style="margin-bottom:12px;">← Retour</button>
+        <div class="details-header">
+          <img id="detailsIcon" alt="Icône" />
+          <div class="details-head-text">
+            <h2 id="detailsName"></h2>
+          </div>
         </div>
+        <div class="details-actions" style="margin:16px 0; display:flex; gap:8px; flex-wrap:wrap;">
+          <button id="detailsInstallBtn" class="btn btn-primary">Installer</button>
+          <button id="detailsUninstallBtn" class="btn btn-outline">Désinstaller</button>
+        </div>
+        <div class="details-long-wrapper">
+          <h3 style="margin:0 0 8px;font-size:15px;">Description</h3>
+          <p id="detailsLong" class="details-long" style="white-space:pre-wrap;line-height:1.4;margin:0;"></p>
+        </div>
+        <div id="detailsGallery" class="details-gallery" hidden>
+          <h3 style="margin:20px 0 10px;font-size:15px;">Captures</h3>
+          <div id="detailsGalleryInner" class="gallery-row"></div>
+        </div>
+      </section>
+    </main>
+
+    <div id="toast" class="toast" role="status" aria-live="polite" hidden></div>
+    <section id="updatesPanel" class="panel-lite" hidden>
+      <h2 style="margin:0 0 12px;font-size:16px;">Mises à jour</h2>
+      <p style="margin:0 0 12px;font-size:13px;opacity:.75;">Mettre à jour toutes les applications installées</p>
+      <button id="runUpdatesBtn" class="btn btn-primary">Mettre à jour</button>
+      <div id="updateSpinner" class="update-spinner" role="status" aria-live="polite" hidden>
+        <div class="spinner" aria-hidden="true"></div>
+        <div class="spinner-label">Mise à jour en cours…</div>
       </div>
-      <div class="details-actions" style="margin:16px 0; display:flex; gap:8px; flex-wrap:wrap;">
-        <button id="detailsInstallBtn" class="btn btn-primary">Installer</button>
-        <button id="detailsUninstallBtn" class="btn btn-outline">Désinstaller</button>
+      <div id="updateResult" style="margin-top:14px;display:none;">
+        <div id="updateFinalMessage" style="font-size:13px;font-weight:500;color:var(--primary);"></div>
+        <div id="updatedAppsIcons" class="icons-row" style="margin-top:10px;display:flex;gap:8px;flex-wrap:wrap;"></div>
       </div>
-      <div class="details-long-wrapper">
-        <h3 style="margin:0 0 8px;font-size:15px;">Description</h3>
-        <p id="detailsLong" class="details-long" style="white-space:pre-wrap;line-height:1.4;margin:0;"></p>
-      </div>
-      <div id="detailsGallery" class="details-gallery" hidden>
-        <h3 style="margin:20px 0 10px;font-size:15px;">Captures</h3>
-        <div id="detailsGalleryInner" class="gallery-row"></div>
+      <div id="resultWrapper" class="console-wrapper" hidden>
+        <div class="console-actions">
+          <span class="console-title">Sortie</span>
+          <div class="grow"></div>
+          <button id="resultExpandBtn" class="mini-btn" title="Agrandir / Réduire">⤢</button>
+          <button id="resultCopyBtn" class="mini-btn" title="Copier">⧉</button>
+          <button id="resultClearBtn" class="mini-btn" title="Effacer">✕</button>
+        </div>
+        <pre id="result" class="console scrollable" hidden></pre>
       </div>
     </section>
-  </main>
-
-  <div id="toast" class="toast" role="status" aria-live="polite" hidden></div>
-  <section id="updatesPanel" class="panel-lite" hidden>
-    <h2 style="margin:0 0 12px;font-size:16px;">Mises à jour</h2>
-    <p style="margin:0 0 12px;font-size:13px;opacity:.75;">Mettre à jour toutes les applications installées</p>
-    <button id="runUpdatesBtn" class="btn btn-primary">Mettre à jour</button>
-    <div id="updateSpinner" class="update-spinner" role="status" aria-live="polite" hidden>
-      <div class="spinner" aria-hidden="true"></div>
-      <div class="spinner-label">Mise à jour en cours…</div>
-    </div>
-    <div id="updateResult" style="margin-top:14px;display:none;">
-      <div id="updateFinalMessage" style="font-size:13px;font-weight:500;color:var(--primary);"></div>
-      <div id="updatedAppsIcons" class="icons-row" style="margin-top:10px;display:flex;gap:8px;flex-wrap:wrap;"></div>
-    </div>
-    <div id="resultWrapper" class="console-wrapper" hidden>
-      <div class="console-actions">
-        <span class="console-title">Sortie</span>
-        <div class="grow"></div>
-        <button id="resultExpandBtn" class="mini-btn" title="Agrandir / Réduire">⤢</button>
-        <button id="resultCopyBtn" class="mini-btn" title="Copier">⧉</button>
-        <button id="resultClearBtn" class="mini-btn" title="Effacer">✕</button>
-      </div>
-      <pre id="result" class="console scrollable" hidden></pre>
-    </div>
-  </section>
+  </div>
 
   <!-- Lightbox pour les captures -->
   <div id="lightbox" class="lightbox" role="dialog" aria-modal="true" aria-label="Aperçu de la capture" hidden>
