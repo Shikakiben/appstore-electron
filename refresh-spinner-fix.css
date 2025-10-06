@@ -1,0 +1,25 @@
+/* Correction du centrage du spinner sur le bouton refresh */
+.view-mode-switch .btn-refresh.loading {
+  color: var(--primary);
+  background: var(--border);
+  border-color: var(--border);
+  position: relative;
+}
+.view-mode-switch .btn-refresh.loading .icon {
+  opacity: 0;
+}
+.view-mode-switch .btn-refresh.loading::after {
+  content: "";
+  width: 18px;
+  height: 18px;
+  border: 2.5px solid currentColor;
+  border-right-color: transparent;
+  border-radius: 50%;
+  animation: spin .7s linear infinite;
+  position: absolute;
+  top: 50%;
+  left: 50%;
+  margin: -9px 0 0 -9px;
+  pointer-events: none;
+  z-index: 2;
+}

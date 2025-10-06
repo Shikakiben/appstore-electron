@@ -3,12 +3,13 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1" />
-  <title> </title>
+  <title>AM App Store</title>
   <link rel="stylesheet" href="style.css">
+  <link rel="stylesheet" href="refresh-spinner-fix.css">
   <link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 16 16'%3E%3Ccircle cx='8' cy='8' r='7' fill='%233584e4'/%3E%3C/svg%3E">
   <meta name="color-scheme" content="light dark" />
   <!-- Mise à jour CSP: autoriser les requêtes (fetch) vers portable-linux-apps.github.io pour récupérer les descriptions -->
-  <meta http-equiv="Content-Security-Policy" content="default-src 'self'; img-src 'self' https: data:; style-src 'self' 'unsafe-inline'; script-src 'self'; connect-src 'self' https://portable-linux-apps.github.io;">
+  <meta http-equiv="Content-Security-Policy" content="default-src 'self'; img-src 'self' appicon: https: data:; style-src 'self' 'unsafe-inline'; script-src 'self'; connect-src 'self' https://portable-linux-apps.github.io;">
   
   
   
@@ -122,18 +123,32 @@
       <div class="brand-icon" aria-hidden="true">🛍️</div>
       <div class="brand-title">AM App Store</div>
     </div>
-    <div class="header-middle">
+    <div class="header-center" role="search" aria-label="Recherche">
       <div class="search">
+        <span class="search-icon" aria-hidden="true">🔍</span>
         <input id="searchInput" type="search" placeholder="Rechercher des applications…" autocomplete="off" />
       </div>
-      <button id="refreshBtn" class="btn btn-outline" title="Rafraîchir la liste">↻</button>
     </div>
     <div class="header-right">
-      <div class="view-mode-switch" role="group" aria-label="Mode d'affichage">
-        <button class="mode-btn active" data-mode="grid" aria-pressed="true" title="Mode vignettes">▦</button>
-        <button class="mode-btn" data-mode="list" aria-pressed="false" title="Mode liste">≣</button>
-        <button class="mode-btn" data-mode="icons" aria-pressed="false" title="Mode icônes">◻︎</button>
-        <button class="mode-btn" data-mode="cards" aria-pressed="false" title="Mode cartes">🂠</button>
+      <div class="global-actions">
+  <button id="settingsBtn" class="btn btn-outline btn-settings" title="Paramètres (Ctrl+,)" aria-haspopup="true" aria-expanded="false" aria-controls="settingsPanel"><span class="gear-icon" aria-hidden="true">⚙</span></button>
+        <div id="settingsPanel" class="settings-panel settings-panel-right" role="dialog" aria-modal="false" aria-label="Paramètres" hidden tabindex="-1">
+          <div class="settings-group">
+            <div class="settings-title">Thème</div>
+            <label><input type="radio" name="themePref" value="system" checked> Système</label>
+            <label><input type="radio" name="themePref" value="light"> Clair</label>
+            <label><input type="radio" name="themePref" value="dark"> Sombre</label>
+          </div>
+          <div class="settings-separator"></div>
+          <div class="settings-group">
+            <div class="settings-title">À venir</div>
+            <div style="font-size:12px; opacity:.7; line-height:1.4;">De nouvelles options seront ajoutées ici prochainement.</div>
+            <div style="margin-top:10px; display:flex; flex-direction:column; gap:6px;">
+              <button id="purgeIconsBtn" class="mini-btn" type="button" style="align-self:flex-start; font-size:12px; padding:6px 10px; border:1px solid var(--border); background:var(--card); border-radius:8px; cursor:pointer;">Vider le cache des icônes</button>
+              <div id="purgeIconsResult" style="font-size:11px; opacity:.65;"></div>
+            </div>
+          </div>
+        </div>
       </div>
       <div class="window-buttons" aria-label="Fenêtre">
         <button class="win-btn" data-action="min" title="Réduire">–</button>
@@ -142,62 +157,82 @@
       </div>
     </div>
   </header>
+  <div class="sub-bar" role="toolbar" aria-label="Navigation des onglets">
+    <div class="tabs-row">
+      <nav class="tabs" role="tablist" aria-label="Catégories">
+        <button class="tab active" role="tab" aria-selected="true" data-category="all">Tout</button>
+        <button class="tab" role="tab" aria-selected="false" data-category="installed">Installées <span id="installedCount" class="badge">0</span></button>
+        <button class="tab" role="tab" aria-selected="false" data-category="updates">Mises à jour</button>
+        <button class="tab" role="tab" aria-selected="false" data-category="advanced">Mode avancé</button>
+      </nav>
+      <div class="view-mode-switch" role="group" aria-label="Mode d'affichage">
+  <button id="refreshBtn" class="btn btn-outline btn-refresh" title="Rafraîchir la liste" aria-label="Rafraîchir"><span class="icon" aria-hidden="true">↻</span></button>
+        <button id="modeMenuBtn" class="btn btn-outline" aria-haspopup="true" aria-expanded="false" aria-controls="modeMenu" title="Changer de mode d'affichage">▦</button>
+        <div id="modeMenu" class="mode-menu" role="menu" hidden>
+          <button class="mode-option" data-mode="grid" role="menuitem" aria-pressed="true">▦ Grille</button>
+          <button class="mode-option" data-mode="list" role="menuitem" aria-pressed="false">≣ Liste</button>
+          <button class="mode-option" data-mode="icons" role="menuitem" aria-pressed="false">◻︎ Icônes</button>
+          <button class="mode-option" data-mode="cards" role="menuitem" aria-pressed="false">🂠 Cartes</button>
+        </div>
+      </div>
+    </div>
+  </div>
   <div class="scroll-shell">
-    <nav class="tabs" role="tablist" aria-label="Catégories">
-      <button class="tab active" role="tab" aria-selected="true" data-category="all">Tout</button>
-      <button class="tab" role="tab" aria-selected="false" data-category="installed">Installées <span id="installedCount" class="badge">0</span></button>
-      <button class="tab" role="tab" aria-selected="false" data-category="updates">Mises à jour</button>
-    </nav>
-
-    <main class="content">
+    <main class="content" id="mainContent">
+      <!-- Updates panel moved to top to avoid big blank space when apps list hidden -->
+      <section id="updatesPanel" class="panel-lite updates-panel" hidden>
+        <h2 class="panel-heading-xl">Mettre à jour AM et toutes les applications installées</h2>
+        <div class="updates-actions-row">
+          <button id="runUpdatesBtn" class="btn btn-primary updates-run">Mettre à jour</button>
+        </div>
+        <div id="updateSpinner" class="update-spinner" role="status" aria-live="polite" hidden>
+          <div class="spinner" aria-hidden="true"></div>
+          <div class="spinner-label" data-i18n="updates.loading">Recherche de mises à jour et installation si nécessaire…</div>
+        </div>
+        <div id="updateResult" class="update-result" style="display:none;">
+          <div id="updateFinalMessage" class="update-final-message"></div>
+          <div id="updatedAppsIcons" class="icons-row updated-icons"></div>
+          <div class="raw-link-row"><button id="showRawUpdateBtn" class="mini-btn-link" type="button">Voir les détails…</button></div>
+        </div>
+      </section>
+      <section id="advancedPanel" class="panel-lite advanced-panel" hidden>
+        <h2 class="panel-heading-sm">Mode avancé</h2>
+        <p class="placeholder-strong">À venir</p>
+        <p class="placeholder-sub">De nouvelles options seront ajoutées ici prochainement.</p>
+      </section>
       <div id="apps" class="app-list" aria-live="polite" aria-busy="true"></div>
       <section id="appDetails" class="app-details" hidden>
-        <button id="backToListBtn" class="btn btn-outline" style="margin-bottom:12px;">← Retour</button>
+        <button id="backToListBtn" class="btn btn-outline back-btn">← Retour</button>
         <div class="details-header">
           <img id="detailsIcon" alt="Icône" />
           <div class="details-head-text">
             <h2 id="detailsName"></h2>
           </div>
         </div>
-        <div class="details-actions" style="margin:16px 0; display:flex; gap:8px; flex-wrap:wrap;">
+        <div class="details-actions">
           <button id="detailsInstallBtn" class="btn btn-primary">Installer</button>
+          <button id="detailsForceCancelBtn" class="btn btn-outline danger" title="Forcer l'annulation" aria-label="Forcer l'annulation" hidden style="padding:6px 10px;">✕</button>
           <button id="detailsUninstallBtn" class="btn btn-outline">Désinstaller</button>
         </div>
+        <div id="installStream" class="install-stream" hidden>
+          <div class="install-stream-head">
+            <div class="install-stream-status" id="installStreamStatus">En cours…</div>
+            <div class="install-stream-meta"><span id="installStreamElapsed">0s</span> – <span id="installStreamLines">0 lignes</span> · <button id="installStreamToggle" class="mini-link-btn" aria-expanded="false" type="button">Afficher le log</button></div>
+          </div>
+            <pre id="installStreamLog" class="install-stream-log" aria-label="Journal installation" tabindex="0" hidden></pre>
+        </div>
         <div class="details-long-wrapper">
-          <h3 style="margin:0 0 8px;font-size:15px;">Description</h3>
-          <p id="detailsLong" class="details-long" style="white-space:pre-wrap;line-height:1.4;margin:0;"></p>
+          <h3 class="details-section-title">Description</h3>
+          <p id="detailsLong" class="details-long"></p>
         </div>
         <div id="detailsGallery" class="details-gallery" hidden>
-          <h3 style="margin:20px 0 10px;font-size:15px;">Captures</h3>
+          <h3 class="details-gallery-title">Captures</h3>
           <div id="detailsGalleryInner" class="gallery-row"></div>
         </div>
       </section>
     </main>
 
     <div id="toast" class="toast" role="status" aria-live="polite" hidden></div>
-    <section id="updatesPanel" class="panel-lite" hidden>
-      <h2 style="margin:0 0 12px;font-size:16px;">Mises à jour</h2>
-      <p style="margin:0 0 12px;font-size:13px;opacity:.75;">Mettre à jour toutes les applications installées</p>
-      <button id="runUpdatesBtn" class="btn btn-primary">Mettre à jour</button>
-      <div id="updateSpinner" class="update-spinner" role="status" aria-live="polite" hidden>
-        <div class="spinner" aria-hidden="true"></div>
-        <div class="spinner-label">Mise à jour en cours…</div>
-      </div>
-      <div id="updateResult" style="margin-top:14px;display:none;">
-        <div id="updateFinalMessage" style="font-size:13px;font-weight:500;color:var(--primary);"></div>
-        <div id="updatedAppsIcons" class="icons-row" style="margin-top:10px;display:flex;gap:8px;flex-wrap:wrap;"></div>
-      </div>
-      <div id="resultWrapper" class="console-wrapper" hidden>
-        <div class="console-actions">
-          <span class="console-title">Sortie</span>
-          <div class="grow"></div>
-          <button id="resultExpandBtn" class="mini-btn" title="Agrandir / Réduire">⤢</button>
-          <button id="resultCopyBtn" class="mini-btn" title="Copier">⧉</button>
-          <button id="resultClearBtn" class="mini-btn" title="Effacer">✕</button>
-        </div>
-        <pre id="result" class="console scrollable" hidden></pre>
-      </div>
-    </section>
   </div>
 
   <!-- Lightbox pour les captures -->
@@ -209,6 +244,38 @@
       <figcaption id="lightboxCaption" class="lightbox-caption"></figcaption>
     </figure>
     <button id="lightboxNext" class="lightbox-nav next" aria-label="Suivante">›</button>
+  </div>
+
+  <!-- Modale sortie brute mises à jour -->
+  <div id="rawUpdateModal" class="modal" role="dialog" aria-modal="true" aria-label="Sortie de la mise à jour" hidden>
+    <div class="modal-dialog">
+      <div class="modal-header">
+        <h3 class="modal-title">Détails de la mise à jour</h3>
+        <button id="rawUpdateClose" class="modal-close" aria-label="Fermer">✕</button>
+      </div>
+      <div class="modal-body">
+        <pre id="rawUpdatePre" class="raw-pre" aria-label="Sortie brute" tabindex="0"></pre>
+      </div>
+      <div class="modal-footer">
+        <button id="rawCopyBtn" class="mini-btn" type="button">Copier</button>
+        <button id="rawSaveBtn" class="mini-btn" type="button">Enregistrer…</button>
+        <div class="grow"></div>
+        <button id="rawUpdateClose2" class="btn btn-outline" type="button">Fermer</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- Modale confirmation compacte (sans titre ni croix) -->
+  <div id="actionConfirmModal" class="modal" role="dialog" aria-modal="true" aria-label="Confirmation" hidden>
+    <div class="modal-dialog confirm-dialog" role="document">
+      <div class="confirm-body">
+        <p id="actionConfirmMessage" class="confirm-message"></p>
+        <div class="confirm-actions">
+          <button id="actionConfirmCancel" class="btn btn-soft-neutral" type="button">Annuler</button>
+          <button id="actionConfirmOk" class="btn" type="button">Valider</button>
+        </div>
+      </div>
+    </div>
   </div>
 
   <script src="renderer.js"></script>
