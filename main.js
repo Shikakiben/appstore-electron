@@ -602,7 +602,11 @@ ipcMain.handle('list-apps-detailed', async () => {
             const name = cols[0] ? cols[0].split(/\s+/)[0].trim() : null;
             let rawVersion = cols[1] ? cols[1].trim() : null;
             // Normalize common placeholders that mean 'unknown' or unsupported
-            if (rawVersion && /^(unsupported|n\/?a|na|unknown)$/i.test(rawVersion)) rawVersion = null;
+            if (rawVersion) {
+              // remove surrounding parentheses and stray commas
+              rawVersion = rawVersion.replace(/^\(|\)$/g, '').replace(/,$/, '').trim();
+              if (/unsupported|not\s*supported|n\/?a|^na$|^unknown|^none$/i.test(rawVersion)) rawVersion = null;
+            }
             const version = rawVersion;
             if (name) {
               installedSet.add(name);
@@ -613,7 +617,10 @@ ipcMain.handle('list-apps-detailed', async () => {
             const parts = line.split(/\s+/).filter(Boolean);
             const name = parts[0] || null;
             let rawVersion = parts[1] || null;
-            if (rawVersion && /^(unsupported|n\/?a|na|unknown)$/i.test(rawVersion)) rawVersion = null;
+            if (rawVersion) {
+              rawVersion = rawVersion.replace(/^\(|\)$/g, '').replace(/,$/, '').trim();
+              if (/unsupported|not\s*supported|n\/?a|^na$|^unknown|^none$/i.test(rawVersion)) rawVersion = null;
+            }
             const version = rawVersion;
             if (name) {
               installedSet.add(name);

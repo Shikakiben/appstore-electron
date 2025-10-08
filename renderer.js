@@ -1113,7 +1113,11 @@ function render(list) {
   function buildTile(item){
     const { name, installed, desc } = typeof item === 'string' ? { name: item, installed: false, desc: null } : item;
     const label = name.charAt(0).toUpperCase() + name.slice(1);
-    const version = (item && item.version) ? String(item.version) : null;
+    let version = (item && item.version) ? String(item.version) : null;
+    if (version) {
+      const v = version.trim();
+      if (/unsupported|not\s*supported|n\/?a|^na$|^unknown|^none/i.test(v)) version = null; else version = v;
+    }
     let shortDesc = desc || (installed ? 'Déjà présente localement.' : 'Disponible pour installation.');
     if (shortDesc.length > 110) shortDesc = shortDesc.slice(0,107).trim() + '…';
     let actionsHTML = '';
