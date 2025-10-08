@@ -115,8 +115,26 @@ function downloadIconToCache(fileName){
 
     // prepare logging
     const logPath = path.join(iconsCacheDir, 'download.log');
+    const MAX_LOG_SIZE = 5 * 1024 * 1024; // 5 MB
+    const MAX_LOG_BACKUPS = 3;
+    function rotateLogIfNeeded(){
+      try {
+        if (!fs.existsSync(logPath)) return;
+        const st = fs.statSync(logPath);
+        if (st.size <= MAX_LOG_SIZE) return;
+        // rotate: download.log.2 -> download.log.3, etc.
+        for (let i = MAX_LOG_BACKUPS - 1; i >= 0; i--) {
+          const src = i === 0 ? logPath : `${logPath}.${i}`;
+          const dst = `${logPath}.${i+1}`;
+          if (fs.existsSync(src)) {
+            try { fs.renameSync(src, dst); } catch(_){}
+          }
+        }
+      } catch(_){}
+    }
     function appendLog(msg){
       try { fs.appendFileSync(logPath, `[${new Date().toISOString()}] ${msg}\n`); } catch(_){}
+      try { rotateLogIfNeeded(); } catch(_){}
     }
 
     // Prepare conditional headers from stored metadata

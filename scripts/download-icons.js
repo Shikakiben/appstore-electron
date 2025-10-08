@@ -14,9 +14,13 @@ function usage(){
 
 let limit = 500;
 let concurrency = 6;
+let doAll = false;
+let assumeYes = false;
 for(const a of process.argv.slice(2)){
-  if (a.startsWith('--limit=')) limit = Number(a.split('=')[1]) || limit;
-  if (a.startsWith('--concurrency=')) concurrency = Number(a.split('=')[1]) || concurrency;
+  if (a === '--all') doAll = true;
+  else if (a === '--yes') assumeYes = true;
+  else if (a.startsWith('--limit=')) limit = Number(a.split('=')[1]) || limit;
+  else if (a.startsWith('--concurrency=')) concurrency = Number(a.split('=')[1]) || concurrency;
 }
 
 if (!fs.existsSync(cacheDir)){
@@ -33,8 +37,8 @@ try{
   index = JSON.parse(fs.readFileSync(indexPath,'utf8')||'{}');
 }catch(e){ console.error('failed to parse index.json', e.message); process.exit(1); }
 
-const allNames = Object.keys(index).slice(0, limit);
-console.log(`Will check ${allNames.length} icons (limit ${limit}), concurrency ${concurrency}`);
+const keys = Object.keys(index);
+// allNames will be computed inside run() so we can prompt synchronously there if needed
 
 function download(name){
   return new Promise((resolve) => {
@@ -57,6 +61,18 @@ function download(name){
 }
 
 async function run(){
+  let allNames;
+  if (doAll) {
+    console.log(`--all requested: ${keys.length} icons available in index.json`);
+    if (!assumeYes) {
+      const rl = require('readline').createInterface({ input: process.stdin, output: process.stdout });
+      const answer = await new Promise(res => rl.question(`Download all ${keys.length} icons? (y/N) `, a => { rl.close(); res(a); }));
+      if (!/^y(es)?$/i.test(answer)) { console.log('Aborted by user'); process.exit(0); }
+    }
+    limit = keys.length;
+  }
+  allNames = keys.slice(0, limit);
+  console.log(`Will check ${allNames.length} icons (limit ${limit}), concurrency ${concurrency}`);
   const queue = allNames.slice();
   let running = 0;
   let results = [];
