@@ -1641,8 +1641,19 @@ runUpdatesBtn?.addEventListener('click', async () => {
     const res = await window.electronAPI.amAction('__update_all__');
     lastUpdateRaw = res || '';
     handleUpdateCompletion(res || '');
+    // Refresh app list to pick up new versions. Some backends may need a short moment
+    // after update to reflect new versions, so retry once if versions are still missing.
     await loadApps();
     applySearch();
+    // If some installed apps still lack a version, wait a bit and reload once more
+    try {
+      const needs = state.allApps.some(a => a.installed && (!a.version || String(a.version).toLowerCase().includes('unsupported')));
+      if (needs) {
+        await new Promise(r => setTimeout(r, 1200));
+        await loadApps();
+        applySearch();
+      }
+    } catch (_) {}
     const dur = Math.round((performance.now()-start)/1000);
     if (updateFinalMessage && updateFinalMessage.textContent) updateFinalMessage.textContent += t('updates.duration', {dur});
   // (Sortie supprimée)
