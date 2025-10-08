@@ -3,7 +3,7 @@
 
 ⚠️ **This project is not yet functional: it is under development and some features may not work or may be incomplete.**
    
-   **ALL credit goes to [Ivan](https://github.com/ivan-hc) for his amazing work! I only make the GUI using AI.**
+    **ALL credit goes to [Ivan](https://github.com/ivan-hc) for his amazing work! I only make the GUI using AI.**
 ---
 
 ## Features
