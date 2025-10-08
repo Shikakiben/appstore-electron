@@ -1113,11 +1113,7 @@ function render(list) {
   function buildTile(item){
     const { name, installed, desc } = typeof item === 'string' ? { name: item, installed: false, desc: null } : item;
     const label = name.charAt(0).toUpperCase() + name.slice(1);
-    let version = (item && item.version) ? String(item.version) : null;
-    if (version) {
-      const v = version.trim();
-      if (/unsupported|not\s*supported|n\/?a|^na$|^unknown|^none/i.test(v)) version = null; else version = v;
-    }
+    const version = (item && item.version) ? String(item.version) : null;
     let shortDesc = desc || (installed ? 'Déjà présente localement.' : 'Disponible pour installation.');
     if (shortDesc.length > 110) shortDesc = shortDesc.slice(0,107).trim() + '…';
     let actionsHTML = '';
@@ -1614,10 +1610,25 @@ function handleUpdateCompletion(fullText){
     if (updateFinalMessage) updateFinalMessage.textContent = t('updates.updatedApps');
     if (updatedAppsIcons) {
       updatedAppsIcons.innerHTML = '';
-      toShow.forEach(name => {
-        const img = document.createElement('img'); img.src = getIconUrl(name); img.alt = name;
+      toShow.forEach(nameLower => {
+        const wrapper = document.createElement('div'); wrapper.className = 'updated-item';
+        const img = document.createElement('img');
+        // nameLower comes from parsed output (lowercased). Try to find matching app object for proper casing and version
+        const appObj = state.allApps.find(a => String(a.name).toLowerCase() === String(nameLower).toLowerCase());
+        const displayName = appObj ? (appObj.name) : nameLower;
+        const displayVersion = appObj && appObj.version ? appObj.version : null;
+        img.src = getIconUrl(displayName);
+        img.alt = displayName;
         img.onerror = () => { img.src = 'https://raw.githubusercontent.com/Portable-Linux-Apps/Portable-Linux-Apps.github.io/main/icons/blank.png'; };
-        updatedAppsIcons.appendChild(img);
+        const meta = document.createElement('div'); meta.className = 'updated-meta';
+        const title = document.createElement('div'); title.className = 'updated-name'; title.textContent = displayName;
+        const ver = document.createElement('div'); ver.className = 'updated-version'; ver.textContent = displayVersion ? String(displayVersion) : '';
+        if (!displayVersion) ver.hidden = true;
+        meta.appendChild(title);
+        meta.appendChild(ver);
+        wrapper.appendChild(img);
+        wrapper.appendChild(meta);
+        updatedAppsIcons.appendChild(wrapper);
       });
     }
   } else {
