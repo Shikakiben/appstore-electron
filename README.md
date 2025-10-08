@@ -2,7 +2,8 @@
 **AM-AppStore** is an Electron-based application that serves as a graphical App Store for [AM](https://github.com/ivan-hc/AM). “AM”/“AppMan” is a set of scripts and modules for installing, updating, and managing AppImage packages and other portable formats on Linux.
 
 ⚠️ **This project is not yet functional: it is under development and some features may not work or may be incomplete.**
-   **ALL credit goes to [Ivan](https://github.com/ivan-hc) for his amazing work! I only make the GUI and I use AI.**
+   
+   **ALL credit goes to [Ivan](https://github.com/ivan-hc) for his amazing work! I only make the GUI using AI.**
 ---
 
 ## Features
@@ -20,7 +21,6 @@
 - [npm](https://www.npmjs.com/)
 - [Electron](https://www.electronjs.org/)
 - [AM](https://github.com/ivan-hc/AM) installed and accessible in the system PATH
-- **Linux only** (AppImage management is not supported on Windows/Mac)
 
 ---
 
