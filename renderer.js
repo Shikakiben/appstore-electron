@@ -847,8 +847,10 @@ window.addEventListener('DOMContentLoaded', () => {
           try { document.documentElement.setAttribute('lang', getLangPref()); } catch(_){ }
           // Mark handled to avoid delegated double handling
           try { window.__langChangeHandled = true; } catch(_){ }
-          // reload to fully apply language where needed
-          try { window.location.reload(); } catch(_){ }
+          // Re-apply translations and re-render without full reload (avoid crashes)
+          try { applyTranslations(); } catch(_){}
+          try { document.documentElement.setAttribute('lang', getLangPref()); } catch(_){}
+          try { render(state.filtered); refreshAllInstallButtons(); } catch(_){}
         });
       } catch(_){}
     });
@@ -866,8 +868,10 @@ if (settingsPanelLang) {
       localStorage.setItem('langPref', t.value);
       applyTranslations();
       document.documentElement.setAttribute('lang', getLangPref());
-      // Recharger la page pour appliquer complètement la nouvelle langue
-      window.location.reload();
+  // Appliquer les traductions dynamiquement sans recharger
+  try { applyTranslations(); } catch(_){}
+  try { document.documentElement.setAttribute('lang', getLangPref()); } catch(_){}
+  try { render(state.filtered); refreshAllInstallButtons(); } catch(_){}
     }
   });
 }
@@ -1109,6 +1113,7 @@ function render(list) {
   function buildTile(item){
     const { name, installed, desc } = typeof item === 'string' ? { name: item, installed: false, desc: null } : item;
     const label = name.charAt(0).toUpperCase() + name.slice(1);
+    const version = (item && item.version) ? String(item.version) : null;
     let shortDesc = desc || (installed ? 'Déjà présente localement.' : 'Disponible pour installation.');
     if (shortDesc.length > 110) shortDesc = shortDesc.slice(0,107).trim() + '…';
     let actionsHTML = '';
@@ -1149,12 +1154,12 @@ function render(list) {
     tile.innerHTML = isCards ? `
   <img data-src="${getIconUrl(name)}" alt="${label}" loading="lazy" decoding="async" onerror="this.onerror=null; this.src='https://raw.githubusercontent.com/Portable-Linux-Apps/Portable-Linux-Apps.github.io/main/icons/${name}.png'; setTimeout(()=>{ if(this.naturalWidth<=1) this.src='https://raw.githubusercontent.com/Portable-Linux-Apps/Portable-Linux-Apps.github.io/main/icons/blank.png'; },1200);">
       <div class="tile-text">
-        <div class="tile-name">${label} ${installed ? '<span class=\"installed-badge\" aria-label=\"Installée\" title=\"Installée\">✓</span>' : ''}${stateBadge}</div>
+        <div class="tile-name">${label}${version? ` <span class=\"tile-version\">${version}</span>`: ''} ${installed ? '<span class=\"installed-badge\" aria-label=\"Installée\" title=\"Installée\">✓</span>' : ''}${stateBadge}</div>
         <div class="tile-short">${shortDesc}</div>
       </div>` : `
   <img data-src="${getIconUrl(name)}" alt="${label}" loading="lazy" decoding="async" onerror="this.onerror=null; this.src='https://raw.githubusercontent.com/Portable-Linux-Apps/Portable-Linux-Apps.github.io/main/icons/${name}.png'; setTimeout(()=>{ if(this.naturalWidth<=1) this.src='https://raw.githubusercontent.com/Portable-Linux-Apps/Portable-Linux-Apps.github.io/main/icons/blank.png'; },1200);">
       <div class="tile-text">
-        <div class="tile-name">${label} ${installed ? '<span class=\"installed-badge\" aria-label=\"Installée\" title=\"Installée\">✓</span>' : ''}${stateBadge}</div>
+        <div class="tile-name">${label}${version? ` <span class=\"tile-version\">${version}</span>`: ''} ${installed ? '<span class=\"installed-badge\" aria-label=\"Installée\" title=\"Installée\">✓</span>' : ''}${stateBadge}</div>
         <div class="tile-short">${shortDesc}</div>
       </div>
       ${actionsHTML}`;
@@ -1264,11 +1269,12 @@ function showDetails(appName) {
   if (scroller) state.lastScrollY = scroller.scrollTop;
   state.currentDetailsApp = app.name;
   const label = app.name.charAt(0).toUpperCase() + app.name.slice(1);
+  const version = app.version ? String(app.version) : null;
   if (detailsIcon) {
     detailsIcon.src = getIconUrl(app.name);
     detailsIcon.onerror = () => { detailsIcon.src = 'https://raw.githubusercontent.com/Portable-Linux-Apps/Portable-Linux-Apps.github.io/main/icons/blank.png'; };
   }
-  if (detailsName) detailsName.textContent = app.installed ? `${label} ✓` : label;
+  if (detailsName) detailsName.textContent = app.installed ? `${label}${version? ' · '+version : ''} ✓` : (version? `${label} · ${version}` : label);
   if (detailsName) detailsName.dataset.app = app.name.toLowerCase();
   if (detailsLong) detailsLong.textContent = t('details.loadingDesc', {name: app.name});
   if (detailsGallery) detailsGallery.hidden = true;
@@ -1343,7 +1349,8 @@ function applySearch() {
   if (updatesPanel) updatesPanel.hidden = true;
   if (advancedPanel) advancedPanel.hidden = true;
   if (state.activeCategory === 'installed') {
-    base = state.allApps.filter(a => a.installed);
+    // Show only installed apps that were marked with leading '◆' in the source list
+    base = state.allApps.filter(a => a.installed && (a.hasDiamond === true));
   }
   state.filtered = !q ? base : base.filter(a => a.name.toLowerCase().includes(q));
   render(state.filtered);

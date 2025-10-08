@@ -2,7 +2,11 @@ const { app, BrowserWindow, ipcMain, Menu, protocol, shell } = require('electron
 const path = require('path');
 const { exec, spawn } = require('child_process');
 const fs = require('fs');
-const https = require('https');
+const undici = require('undici');
+const fetch = undici.fetch;
+// AbortController fallback: prefer global, then undici.AbortController, then optional polyfill
+let AbortControllerCtor = globalThis.AbortController || undici.AbortController || null;
+try { if (!AbortControllerCtor) AbortControllerCtor = require('abort-controller'); } catch(_) { }
 // Fonction pour détecter le gestionnaire dispo
 const detectPackageManager = () => {
   return new Promise((resolve) => {
@@ -15,7 +19,6 @@ const detectPackageManager = () => {
     });
   });
 };
-
 // -- Cache icônes via protocole personnalisé appicon:// --
 let iconsCacheDir = null;
 let blankIconPath = null;
@@ -30,7 +33,7 @@ let iconsMetaPath = null;
 function ensureIconCacheSetup(){
   if (!iconsCacheDir) {
     iconsCacheDir = path.join(app.getPath('userData'), 'icons-cache');
-    try { fs.mkdirSync(iconsCacheDir, { recursive: true }); } catch(_){}
+    try { fs.mkdirSync(iconsCacheDir, { recursive: true }); } catch(_){ }
   }
   if (!blankIconPath) {
     blankIconPath = path.join(iconsCacheDir, '__blank.png');
@@ -59,7 +62,6 @@ function saveIconsMeta() {
     fs.renameSync(iconsMetaPath + '.tmp', iconsMetaPath);
   } catch(_) {}
 }
-
 function pruneCache() {
   try {
     ensureIconCacheSetup();
@@ -72,12 +74,12 @@ function pruneCache() {
         const st = fs.statSync(p);
         total += st.size;
         infos.push({ file: f, path: p, size: st.size, mtime: st.mtimeMs });
-      } catch(_){}
+      } catch(_){ }
     }
     if (total <= MAX_CACHE_SIZE_BYTES) return;
     infos.sort((a,b)=> a.mtime - b.mtime); // oldest first
     for (const info of infos) {
-      try { fs.unlinkSync(info.path); total -= info.size; if (iconsMeta && iconsMeta[info.file]) delete iconsMeta[info.file]; } catch(_){}
+      try { fs.unlinkSync(info.path); total -= info.size; if (iconsMeta && iconsMeta[info.file]) delete iconsMeta[info.file]; } catch(_){ }
       if (total <= MAX_CACHE_SIZE_BYTES) break;
     }
     saveIconsMeta();
@@ -127,14 +129,14 @@ function downloadIconToCache(fileName){
           const src = i === 0 ? logPath : `${logPath}.${i}`;
           const dst = `${logPath}.${i+1}`;
           if (fs.existsSync(src)) {
-            try { fs.renameSync(src, dst); } catch(_){}
+            try { fs.renameSync(src, dst); } catch(_){ }
           }
         }
-      } catch(_){}
+      } catch(_){ }
     }
     function appendLog(msg){
-      try { fs.appendFileSync(logPath, `[${new Date().toISOString()}] ${msg}\n`); } catch(_){}
-      try { rotateLogIfNeeded(); } catch(_){}
+      try { fs.appendFileSync(logPath, `[${new Date().toISOString()}] ${msg}\n`); } catch(_){ }
+      try { rotateLogIfNeeded(); } catch(_){ }
     }
 
     // Prepare conditional headers from stored metadata
@@ -154,51 +156,66 @@ function downloadIconToCache(fileName){
       attempt++;
       appendLog(`Attempt ${attempt} for ${fileName}`);
       const headers = Object.assign({}, headersBase);
-      const req = https.request(baseUrl, { method: 'GET', headers, timeout: 15000 }, (res) => {
-        if (res.statusCode === 304) {
-          appendLog(`${fileName} not modified (304)`);
-          try { fs.utimesSync(dest, new Date(), new Date()); } catch(_){ }
-          iconsMeta = iconsMeta || {};
-          iconsMeta[fileName] = iconsMeta[fileName] || {};
-          iconsMeta[fileName].mtime = Date.now();
-          saveIconsMeta();
-          return resolve(dest);
-        }
-        if (res.statusCode !== 200) {
-          appendLog(`${fileName} HTTP ${res.statusCode}`);
-          return onFail(`http ${res.statusCode}`);
-        }
 
-        const tmpPath = dest + '.tmp';
-        const file = fs.createWriteStream(tmpPath);
-        let finished = false;
-        res.pipe(file);
-        file.on('finish', () => {
+      // use undici.fetch with AbortController and a 15s timeout
+      (async () => {
+  const controller = new (AbortControllerCtor || globalThis.AbortController || (class { constructor(){ throw new Error('AbortController unavailable'); } }))();
+  const timeout = setTimeout(() => { try { controller.abort(); } catch(_){} }, 15000);
+        let res;
+        try {
+          res = await fetch(baseUrl, { method: 'GET', headers, signal: controller.signal });
+        } catch (err) {
+          clearTimeout(timeout);
+          const msg = err && err.name === 'AbortError' ? 'timeout' : (err && err.message) || String(err);
+          appendLog(`${fileName} fetch error: ${msg}`);
+          return onFail(msg);
+        }
+        clearTimeout(timeout);
+
+        try {
+          if (res.status === 304) {
+            appendLog(`${fileName} not modified (304)`);
+            try { fs.utimesSync(dest, new Date(), new Date()); } catch(_){ }
+            iconsMeta = iconsMeta || {};
+            iconsMeta[fileName] = iconsMeta[fileName] || {};
+            iconsMeta[fileName].mtime = Date.now();
+            saveIconsMeta();
+            return resolve(dest);
+          }
+          if (res.status !== 200) {
+            appendLog(`${fileName} HTTP ${res.status}`);
+            return onFail(`http ${res.status}`);
+          }
+
+          const tmpPath = dest + '.tmp';
           try {
+            const ab = await res.arrayBuffer();
+            const buf = Buffer.from(ab);
+            if (buf.length < 200) { appendLog(`${fileName} too small after fetch (${buf.length})`); try { fs.unlinkSync(tmpPath); } catch(_){} return onFail('too-small'); }
+            fs.writeFileSync(tmpPath, buf);
             const stat = fs.statSync(tmpPath);
-            if (stat.size < 200) { try { fs.unlinkSync(tmpPath); } catch(_){} appendLog(`${fileName} too small after download`); return onFail('too-small'); }
             fs.renameSync(tmpPath, dest);
             const newMeta = { size: stat.size, mtime: Date.now() };
-            if (res.headers && res.headers['etag']) newMeta.etag = res.headers['etag'];
-            if (res.headers && res.headers['last-modified']) newMeta.lastModified = res.headers['last-modified'];
+            const etag = res.headers && (res.headers.get ? res.headers.get('etag') : (res.headers && res.headers['etag']));
+            const lastMod = res.headers && (res.headers.get ? res.headers.get('last-modified') : (res.headers && res.headers['last-modified']));
+            if (etag) newMeta.etag = etag;
+            if (lastMod) newMeta.lastModified = lastMod;
             iconsMeta = iconsMeta || {};
             iconsMeta[fileName] = newMeta;
             saveIconsMeta();
             pruneCache();
-            finished = true;
             appendLog(`${fileName} downloaded OK (${stat.size} bytes)`);
             return resolve(dest);
-          } catch(e) {
-            try { fs.unlinkSync(tmpPath); } catch(_){}
+          } catch (e) {
+            try { if (fs.existsSync(tmpPath)) fs.unlinkSync(tmpPath); } catch(_){ }
             appendLog(`${fileName} write error: ${e && e.message}`);
             return onFail(e && e.message);
           }
-        });
-        file.on('error', (e) => { try { fs.unlinkSync(tmpPath); } catch(_){} if (!finished) { appendLog(`${fileName} stream error: ${e && e.message}`); onFail(e && e.message); } });
-      });
-      req.on('timeout', () => { try { req.abort(); } catch(_){} appendLog(`${fileName} timeout`); onFail('timeout'); });
-      req.on('error', (err) => { appendLog(`${fileName} request error: ${err && err.message}`); onFail(err && err.message); });
-      req.end();
+        } catch (e) {
+          appendLog(`${fileName} processing error: ${e && e.message}`);
+          return onFail(e && e.message);
+        }
+      })();
     }
 
     function onFail(reason){
@@ -227,6 +244,7 @@ function downloadIconToCache(fileName){
   p.then(() => inFlightDownloads.delete(fileName), () => inFlightDownloads.delete(fileName));
   return p;
 }
+
 
 function registerIconProtocol(){
   ensureIconCacheSetup();
@@ -505,65 +523,116 @@ ipcMain.handle('list-apps-detailed', async () => {
   if (!pm) {
     return { installed: [], all: [], pmFound: false, error: "Aucun gestionnaire 'am' ou 'appman' détecté dans le PATH." };
   }
+  // We call both `pm -l` (catalog) and `pm -f` (installed files list). Some pm implementations
+  // (notably appman) print only a summary in `-l` and not the installed items — `-f` contains
+  // the actual list of installed programs. Run both and merge results.
   const listCmd = `${pm} -l`;
-  return new Promise((resolve) => {
-    exec(listCmd, (err, stdout) => {
-      if (err || !stdout) return resolve({ installed: [], all: [], pmFound: true, error: 'Échec exécution commande liste.' });
-      const lines = stdout.split('\n');
-      let inInstalled = false;
-      let inCatalog = false;
-      const installedSet = new Set();
+  const installedCmd = `${pm} -f`;
+  const execPromise = (cmd) => new Promise(res => {
+    exec(cmd, (err, stdout) => res({ err, stdout: stdout || '' }));
+  });
+  return new Promise(async (resolve) => {
+    try {
+      const [listRes, instRes] = await Promise.all([execPromise(listCmd), execPromise(installedCmd)]);
+      if ((listRes.err || !listRes.stdout) && (instRes.err || !instRes.stdout)) {
+        return resolve({ installed: [], all: [], pmFound: true, error: 'Échec exécution commande liste.' });
+      }
+
       const catalogSet = new Set();
-
-      // Maps pour descriptions
       const catalogDesc = new Map();
+      const installedSet = new Set();
       const installedDesc = new Map();
+  const diamondSet = new Set(); // apps that were listed with leading '◆' in catalog output
 
-      for (const raw of lines) {
-        const line = raw.trim();
-        if (!line) continue;
-        if (line.startsWith('YOU HAVE INSTALLED')) { inInstalled = true; continue; }
-        if (line.startsWith('To list all installable programs')) { inInstalled = false; continue; }
-        if (line.startsWith('LIST OF')) { inCatalog = true; continue; }
-        if (!line.startsWith('\u25c6')) continue;
-
-        const rest = line.slice(1).trim();
-        const colonIdx = rest.indexOf(':');
-        let desc = null;
-        let left = rest;
-        if (colonIdx !== -1) {
+      // Parse catalog from -l output (same rules as before)
+      try {
+        const lines = (listRes.stdout || '').split('\n');
+        let inInstalled = false;
+        let inCatalog = false;
+        for (const raw of lines) {
+          const line = raw.trim();
+          if (!line) continue;
+          if (line.startsWith('YOU HAVE INSTALLED')) { inInstalled = true; continue; }
+          if (line.startsWith('To list all installable programs')) { inInstalled = false; continue; }
+          if (line.startsWith('LIST OF')) { inCatalog = true; continue; }
+          if (!line.startsWith('\u25c6')) continue;
+          const rest = line.slice(1).trim();
+          const colonIdx = rest.indexOf(':');
+          let desc = null;
+          let left = rest;
+          if (colonIdx !== -1) {
             left = rest.slice(0, colonIdx).trim();
             desc = rest.slice(colonIdx + 1).trim();
             if (desc === '') desc = null;
-        }
-        if (inInstalled && !inCatalog) {
-          const name = left.split(/\s+/)[0].trim();
-          if (name) {
-            installedSet.add(name);
-            if (desc) installedDesc.set(name, desc);
           }
-        } else if (inCatalog) {
-          const name = left.split(/\s+/)[0].trim();
-          if (name) {
-            catalogSet.add(name);
-            if (desc) catalogDesc.set(name, desc);
+          if (inInstalled && !inCatalog) {
+            const name = left.split(/\s+/)[0].trim();
+            if (name) {
+              installedSet.add(name);
+              diamondSet.add(name);
+              if (desc) installedDesc.set(name, desc);
+            }
+          } else if (inCatalog) {
+            const name = left.split(/\s+/)[0].trim();
+            if (name) {
+              catalogSet.add(name);
+              // The line had a leading '◆' (we trimmed it earlier), treat it as diamond-marked
+              diamondSet.add(name);
+              if (desc) catalogDesc.set(name, desc);
+            }
           }
         }
+      } catch (e) {
+        // ignore parse errors from catalog
+      }
+
+      // Parse installed list from -f output (appman -f prints installed programs)
+      // Example -f lines:
+      // "◆ pycharm             | 2025.2.2               | appimage       | 823 MiB"
+      try {
+        const lines = (instRes.stdout || '').split('\n');
+        for (const raw of lines) {
+          let line = raw.trim();
+          if (!line) continue;
+          if (line.startsWith('\u25c6')) line = line.slice(1).trim();
+          if (!line) continue;
+          // Try to parse "name | version | type | size" separated by | if present
+          if (line.includes('|')) {
+            const cols = line.split('|').map(s => s.trim()).filter(Boolean);
+            const name = cols[0] ? cols[0].split(/\s+/)[0].trim() : null;
+            const version = cols[1] ? cols[1] : null;
+            if (name) {
+              installedSet.add(name);
+              if (version) installedDesc.set(name, version);
+            }
+          } else {
+            // Fallback: first token is name, second token may be version
+            const parts = line.split(/\s+/).filter(Boolean);
+            const name = parts[0] || null;
+            const version = parts[1] || null;
+            if (name) {
+              installedSet.add(name);
+              if (version) installedDesc.set(name, version);
+            }
+          }
+        }
+      } catch (e) {
+        // ignore parse errors from installed
       }
 
       const allSet = new Set([...catalogSet, ...installedSet]);
       const all = Array.from(allSet).map(name => ({
         name,
         installed: installedSet.has(name),
-        desc: catalogDesc.get(name) || installedDesc.get(name) || null
+        hasDiamond: diamondSet.has(name),
+        version: installedDesc.get(name) || null,
+        desc: catalogDesc.get(name) || null
       }));
-      const installed = Array.from(installedSet).map(name => ({
-        name,
-        installed: true,
-        desc: catalogDesc.get(name) || installedDesc.get(name) || null
-      }));
-      resolve({ installed, all, pmFound: true });
-    });
+      const installed = Array.from(installedSet).map(name => ({ name, installed: true, hasDiamond: diamondSet.has(name), version: installedDesc.get(name) || null, desc: catalogDesc.get(name) || null }));
+      return resolve({ installed, all, pmFound: true });
+    } catch (e) {
+      return resolve({ installed: [], all: [], pmFound: true, error: 'Erreur interne lors du parsing.' });
+    }
   });
 });
 

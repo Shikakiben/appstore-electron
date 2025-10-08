@@ -9,7 +9,9 @@
   "devDependencies": {
     "electron": "^38.2.0"
   },
-  "dependencies": {},
+  "dependencies": {
+    "undici": "^5.29.0"
+  },
   "engines": {
     "node": ">=20 <23"
   }

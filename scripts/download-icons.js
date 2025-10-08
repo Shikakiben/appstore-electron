@@ -1,7 +1,7 @@
 #!/usr/bin/env node
 const fs = require('fs');
 const path = require('path');
-const https = require('https');
+const { fetch, AbortController } = require('undici');
 const os = require('os');
 
 const userData = path.join(os.homedir(), '.config', 'am-appstore');
@@ -45,18 +45,32 @@ function download(name){
     const dest = path.join(cacheDir, name);
     if (fs.existsSync(dest)) return resolve({ name, ok:true, reason:'exists' });
     const url = `https://raw.githubusercontent.com/Portable-Linux-Apps/Portable-Linux-Apps.github.io/main/icons/${name}`;
-    const req = https.get(url, { timeout: 15000 }, (res) => {
-      if (res.statusCode !== 200) { res.resume(); return resolve({ name, ok:false, reason:`status ${res.statusCode}` }); }
+    (async () => {
+      const controller = new AbortController();
+      const timeout = setTimeout(() => { try { controller.abort(); } catch(_){} }, 15000);
+      let res;
+      try {
+        res = await fetch(url, { method: 'GET', signal: controller.signal });
+      } catch (err) {
+        clearTimeout(timeout);
+        const msg = err && err.name === 'AbortError' ? 'timeout' : (err && err.message) || String(err);
+        return resolve({ name, ok:false, reason: msg });
+      }
+      clearTimeout(timeout);
+      if (res.status !== 200) { try { await res.body?.cancel?.(); } catch(_){} return resolve({ name, ok:false, reason:`status ${res.status}` }); }
       const tmp = dest + '.tmp';
-      const ws = fs.createWriteStream(tmp);
-      res.pipe(ws);
-      ws.on('finish', () => {
-        try{ const st = fs.statSync(tmp); if (st.size < 200) { fs.unlinkSync(tmp); return resolve({ name, ok:false, reason:'too small' }); } fs.renameSync(tmp, dest); return resolve({ name, ok:true }); }catch(e){ try{fs.unlinkSync(tmp);}catch(_){} return resolve({ name, ok:false, reason:e.message }); }
-      });
-      ws.on('error', (e) => { try{fs.unlinkSync(tmp);}catch(_){} return resolve({ name, ok:false, reason:e.message }); });
-    });
-    req.on('error', (e) => resolve({ name, ok:false, reason: e.message }));
-    req.on('timeout', () => { try{ req.abort(); }catch(_){} resolve({ name, ok:false, reason:'timeout' }); });
+      try {
+        const ab = await res.arrayBuffer();
+        const buf = Buffer.from(ab);
+        if (buf.length < 200) { try { if (fs.existsSync(tmp)) fs.unlinkSync(tmp); } catch(_){} return resolve({ name, ok:false, reason:'too small' }); }
+        fs.writeFileSync(tmp, buf);
+        fs.renameSync(tmp, dest);
+        return resolve({ name, ok:true });
+      } catch (e) {
+        try{ if (fs.existsSync(tmp)) fs.unlinkSync(tmp); } catch(_){}
+        return resolve({ name, ok:false, reason: e && e.message });
+      }
+    })();
   });
 }
 

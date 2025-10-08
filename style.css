@@ -399,6 +399,16 @@ body.view-cards .app-tile .tile-short { font-size:13px; max-height:4.1em; overfl
 /* Mode vue détaillée: masquer tout sauf la section détail */
 /* En mode détails, on masque seulement la grille d'apps et le panneau updates */
 
+/* Version text near app names */
+.tile-version {
+  font-size: 12px;
+  color: var(--muted);
+  font-weight: 500;
+  margin-left: 6px;
+}
+
+body.view-list .tile-version { max-width: 160px; display: inline-block; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+
 /* Styles pour le panneau Avancé */
 .advanced-note { background: rgba(240,240,250,0.6); border-left: 3px solid #6a7; padding: 12px; border-radius: 6px; }
 .advanced-note .commands.condensed { list-style: none; padding-left: 0; margin: 8px 0; }
