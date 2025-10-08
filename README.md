@@ -1,10 +1,8 @@
 # AM-AppStore
-
-**AM-AppStore** is an Electron-based application that serves as a graphical App Store for [AM](https://github.com/ivan-hc/AM). "AM"/"AppMan" is a set of scripts and modules for installing, updating, and managing AppImage packages and other portable formats on Linux.
+**AM-AppStore** is an Electron-based application that serves as a graphical App Store for [AM](https://github.com/ivan-hc/AM). “AM”/“AppMan” is a set of scripts and modules for installing, updating, and managing AppImage packages and other portable formats on Linux.
 
 ⚠️ **This project is not yet functional: it is under development and some features may not work or may be incomplete.**
-   **all the credit go to [Ivan](https://github.com/ivan-hc) for his amazing work! , im no dev and using IA for this GUI app.**
-
+   **ALL credit goes to [Ivan](https://github.com/ivan-hc) for his amazing work! I only make the GUI and I use AI.**
 ---
 
 ## Features
@@ -12,7 +10,7 @@
 - **Displays a catalog of AppImage applications** available via AM/appman, with icons.
 - **One-click installation and removal** of AppImage applications.
 - **Fast search and sorting** of software (coming soon).
-- **Displays results and action feedback** (success/error).
+- **Displays results and action feedback** (success/errors).
 
 ---
 
@@ -47,7 +45,7 @@ npm install
 npm start
 ```
 
-3. Browse, install, or uninstall the AppImage applications of your choice!
+3. Browse, install, or uninstall the AppImage applications of your choice.
 
 ---
 
@@ -61,7 +59,7 @@ npm start
 
 ## Acknowledgements
 
-Thanks to [Ivan](https://github.com/ivan-hc) and the [pkgforge community](https://github.com/pkgforge-dev) for their outstanding work on managing and distributing AppImages on Linux.
+Thanks to [Ivan](https://github.com/ivan-hc) and the [pkgforge community](https://github.com/pkgforge-dev) for their outstanding work managing and distributing AppImages on Linux.
 
 ---
 

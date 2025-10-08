@@ -93,7 +93,7 @@ body.details-mode .scroll-shell { top:calc(var(--header-h) + var(--subbar-h)); }
 .btn-settings:focus-visible { outline:2px solid var(--primary); outline-offset:2px; }
 .settings-panel-right { right:0; left:auto; top:110%; transform:none; }
 .brand { display:flex; align-items:center; gap:14px; }
-.brand-icon { font-size:30px; line-height:1; }
+.brand-icon { width:80px; height:80px; object-fit:contain; }
 .brand-title { font-weight:600; font-size:18px; letter-spacing:.3px; }
 /* Centre du header (refresh + settings) */
 .header-center { display:flex; align-items:center; justify-content:center; gap:8px; -webkit-app-region:no-drag; position:relative; }
@@ -268,6 +268,9 @@ body.theme-dark .install-state-badge.queued { background:linear-gradient(135deg,
 .installed-badge { display:inline-flex; align-items:center; justify-content:center; min-width:20px; }
 .installed-badge { line-height:1; }
 
+/* Badge simple (compteur d'onglet par ex.) */
+.badge { display:inline-flex; align-items:center; justify-content:center; min-width:20px; padding:2px 7px; font-size:12px; border-radius:999px; background:var(--primary); color:#fff; font-weight:600; margin-left:6px; }
+
 /* Mode liste */
 body.view-list #apps { display:block; }
 body.view-list .app-tile { border-radius:0; border-left:none; border-right:none; box-shadow:none; padding:10px 12px; margin:0; display:flex; align-items:center; gap:14px; }
@@ -395,6 +398,15 @@ body.view-cards .app-tile .tile-short { font-size:13px; max-height:4.1em; overfl
 
 /* Mode vue détaillée: masquer tout sauf la section détail */
 /* En mode détails, on masque seulement la grille d'apps et le panneau updates */
+
+/* Styles pour le panneau Avancé */
+.advanced-note { background: rgba(240,240,250,0.6); border-left: 3px solid #6a7; padding: 12px; border-radius: 6px; }
+.advanced-note .commands.condensed { list-style: none; padding-left: 0; margin: 8px 0; }
+.advanced-note .commands.condensed li { margin: 6px 0; font-size:13px; }
+.advanced-note .docs-link a { color: var(--primary); text-decoration:underline; }
+
+.commands.condensed { list-style:none; padding-left:0; }
+.commands.condensed li { margin:6px 0; }
 body.details-mode #updatesPanel { display:none !important; }
 /* Optimisation: masquer logiquement la grille sans la détruire pour retour plus rapide */
 body.details-mode #apps { content-visibility:hidden; height:0 !important; overflow:hidden !important; margin:0 !important; padding:0 !important; }

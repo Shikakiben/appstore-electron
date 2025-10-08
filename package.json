@@ -3,7 +3,8 @@
   "version": "1.0.0",
   "main": "main.js",
   "scripts": {
-    "start": "electron ."
+    "start": "electron .",
+    "download-icons": "node scripts/download-icons.js --limit=500 --concurrency=8"
   },
   "devDependencies": {
     "electron": "^38.2.0"

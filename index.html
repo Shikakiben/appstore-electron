@@ -10,169 +10,74 @@
   <meta name="color-scheme" content="light dark" />
   <!-- Mise à jour CSP: autoriser les requêtes (fetch) vers portable-linux-apps.github.io pour récupérer les descriptions -->
   <meta http-equiv="Content-Security-Policy" content="default-src 'self'; img-src 'self' appicon: https: data:; style-src 'self' 'unsafe-inline'; script-src 'self'; connect-src 'self' https://portable-linux-apps.github.io;">
-  
-  
-  
-  
-  
-  
-  
-  
-  
-  
-  
-  
-  
-  
-  
-  
-  
-  
-  
-  
-  
-  
-  
-  
-  
-  
-  
-  
-  
-  
-  
-  
-  
-  
-  
-  
-  
-  
-  
-  
-  
-  
-  
-  
-  
-  
-  
-  
-  
-  
-  
-  
-  
-  
-  
-  
-  
-  
-  
-  
-  
-  
-  
-  
-  
-  
-  
-  
-  
-  
-  
-  
-  
-  
-  
-  
-  
-  
-  
-  
-  
-  
-  
-  
-  
-  
-  
-  
-  
-  
-  
-  
-  
-  
-  
-  
-  
-  
-  
-  
-  
-  
-  
-  
-  
-  
 </head>
 <body>
   <header class="app-header" data-tauri-drag-region>
     <div class="brand">
-      <div class="brand-icon" aria-hidden="true">🛍️</div>
-      <div class="brand-title">AM App Store</div>
+  <img class="brand-icon" src="app-icon.png" alt="AM App Store Icon" aria-hidden="true">
+  <div class="brand-title" data-i18n="main.title">AM App Store</div>
     </div>
     <div class="header-center" role="search" aria-label="Recherche">
       <div class="search">
         <span class="search-icon" aria-hidden="true">🔍</span>
-        <input id="searchInput" type="search" placeholder="Rechercher des applications…" autocomplete="off" />
+        <input id="searchInput" type="search" placeholder="Rechercher des applications…" data-i18n-placeholder="search.placeholder" autocomplete="off" />
       </div>
     </div>
     <div class="header-right">
       <div class="global-actions">
   <button id="settingsBtn" class="btn btn-outline btn-settings" title="Paramètres (Ctrl+,)" aria-haspopup="true" aria-expanded="false" aria-controls="settingsPanel"><span class="gear-icon" aria-hidden="true">⚙</span></button>
-        <div id="settingsPanel" class="settings-panel settings-panel-right" role="dialog" aria-modal="false" aria-label="Paramètres" hidden tabindex="-1">
+  <div id="settingsPanel" class="settings-panel settings-panel-right" role="dialog" aria-modal="false" aria-label="Paramètres" hidden tabindex="-1">
           <div class="settings-group">
-            <div class="settings-title">Thème</div>
-            <label><input type="radio" name="themePref" value="system" checked> Système</label>
-            <label><input type="radio" name="themePref" value="light"> Clair</label>
-            <label><input type="radio" name="themePref" value="dark"> Sombre</label>
+            <div class="settings-title" data-i18n="settings.theme">Thème</div>
+            <label><input type="radio" name="themePref" value="system" checked> <span data-i18n="settings.auto">Système</span></label>
+            <label><input type="radio" name="themePref" value="light"> <span data-i18n="settings.light">Clair</span></label>
+            <label><input type="radio" name="themePref" value="dark"> <span data-i18n="settings.dark">Sombre</span></label>
+          </div>
+          <div class="settings-group">
+            <div class="settings-title" data-i18n="settings.lang">Langue</div>
+            <label><input type="radio" name="langPref" value="auto" checked> <span data-i18n="settings.auto">Auto</span></label>
+            <label><input type="radio" name="langPref" value="fr"> <span data-i18n="settings.fr">Français</span></label>
+            <label><input type="radio" name="langPref" value="en"> <span data-i18n="settings.en">English</span></label>
+            <label><input type="radio" name="langPref" value="it"> <span data-i18n="settings.it">Italiano</span></label>
+          </div>
+          <div class="settings-group">
+            <div class="settings-title" data-i18n="settings.links">Liens</div>
+            <label style="font-size:13px;"><input type="checkbox" id="openExternalLinksCheckbox"> <span data-i18n="settings.openExternal">Ouvrir les liens dans le navigateur externe</span></label>
           </div>
           <div class="settings-separator"></div>
           <div class="settings-group">
-            <div class="settings-title">À venir</div>
-            <div style="font-size:12px; opacity:.7; line-height:1.4;">De nouvelles options seront ajoutées ici prochainement.</div>
+            <div class="settings-title" data-i18n="settings.coming">À venir</div>
+            <div style="font-size:12px; opacity:.7; line-height:1.4;" data-i18n="settings.future">De nouvelles options seront ajoutées ici prochainement.</div>
             <div style="margin-top:10px; display:flex; flex-direction:column; gap:6px;">
-              <button id="purgeIconsBtn" class="mini-btn" type="button" style="align-self:flex-start; font-size:12px; padding:6px 10px; border:1px solid var(--border); background:var(--card); border-radius:8px; cursor:pointer;">Vider le cache des icônes</button>
+              <button id="purgeIconsBtn" class="mini-btn" type="button" style="align-self:flex-start; font-size:12px; padding:6px 10px; border:1px solid var(--border); background:var(--card); border-radius:8px; cursor:pointer;" data-i18n="settings.purge">Vider le cache des icônes</button>
               <div id="purgeIconsResult" style="font-size:11px; opacity:.65;"></div>
             </div>
           </div>
         </div>
       </div>
       <div class="window-buttons" aria-label="Fenêtre">
-        <button class="win-btn" data-action="min" title="Réduire">–</button>
-        <button class="win-btn" data-action="max" title="Maximiser / Restaurer">⬜</button>
-        <button class="win-btn win-close" data-action="close" title="Fermer">×</button>
+    <button class="win-btn" data-action="min" title="Réduire" data-i18n-title="window.min">–</button>
+    <button class="win-btn" data-action="max" title="Maximiser / Restaurer" data-i18n-title="window.max">⬜</button>
+    <button class="win-btn win-close" data-action="close" title="Fermer" data-i18n-title="window.close">×</button>
       </div>
     </div>
   </header>
   <div class="sub-bar" role="toolbar" aria-label="Navigation des onglets">
     <div class="tabs-row">
       <nav class="tabs" role="tablist" aria-label="Catégories">
-        <button class="tab active" role="tab" aria-selected="true" data-category="all">Tout</button>
-        <button class="tab" role="tab" aria-selected="false" data-category="installed">Installées <span id="installedCount" class="badge">0</span></button>
-        <button class="tab" role="tab" aria-selected="false" data-category="updates">Mises à jour</button>
-        <button class="tab" role="tab" aria-selected="false" data-category="advanced">Mode avancé</button>
+    <button class="tab active" role="tab" aria-selected="true" data-category="all" data-i18n="tabs.all">Tout</button>
+  <button class="tab" role="tab" aria-selected="false" data-category="installed"><span data-i18n="tabs.installed">Installées</span> <span id="installedCount" class="badge">0</span></button>
+    <button class="tab" role="tab" aria-selected="false" data-category="updates" data-i18n="tabs.updates">Mises à jour</button>
+    <button class="tab" role="tab" aria-selected="false" data-category="advanced" data-i18n="tabs.advanced">Mode avancé</button>
       </nav>
       <div class="view-mode-switch" role="group" aria-label="Mode d'affichage">
-  <button id="refreshBtn" class="btn btn-outline btn-refresh" title="Rafraîchir la liste" aria-label="Rafraîchir"><span class="icon" aria-hidden="true">↻</span></button>
-        <button id="modeMenuBtn" class="btn btn-outline" aria-haspopup="true" aria-expanded="false" aria-controls="modeMenu" title="Changer de mode d'affichage">▦</button>
+    <button id="refreshBtn" class="btn btn-outline btn-refresh" title="Rafraîchir la liste" aria-label="Rafraîchir" data-i18n-title="refresh.title" data-i18n-aria-label="refresh.aria">↻</button>
+    <button id="modeMenuBtn" class="btn btn-outline" aria-haspopup="true" aria-expanded="false" aria-controls="modeMenu" title="Changer de mode d'affichage" data-i18n-title="modeMenu.title">▦</button>
         <div id="modeMenu" class="mode-menu" role="menu" hidden>
-          <button class="mode-option" data-mode="grid" role="menuitem" aria-pressed="true">▦ Grille</button>
-          <button class="mode-option" data-mode="list" role="menuitem" aria-pressed="false">≣ Liste</button>
-          <button class="mode-option" data-mode="icons" role="menuitem" aria-pressed="false">◻︎ Icônes</button>
-          <button class="mode-option" data-mode="cards" role="menuitem" aria-pressed="false">🂠 Cartes</button>
+          <button class="mode-option" data-mode="grid" role="menuitem" aria-pressed="true" data-i18n="modeMenu.grid">▦ Grille</button>
+          <button class="mode-option" data-mode="list" role="menuitem" aria-pressed="false" data-i18n="modeMenu.list">≣ Liste</button>
+          <button class="mode-option" data-mode="icons" role="menuitem" aria-pressed="false" data-i18n="modeMenu.icons">◻︎ Icônes</button>
+          <button class="mode-option" data-mode="cards" role="menuitem" aria-pressed="false" data-i18n="modeMenu.cards">🂠 Cartes</button>
         </div>
       </div>
     </div>
@@ -181,9 +86,9 @@
     <main class="content" id="mainContent">
       <!-- Updates panel moved to top to avoid big blank space when apps list hidden -->
       <section id="updatesPanel" class="panel-lite updates-panel" hidden>
-        <h2 class="panel-heading-xl">Mettre à jour AM et toutes les applications installées</h2>
+    <h2 class="panel-heading-xl" data-i18n="updates.title">Mettre à jour AM et toutes les applications installées</h2>
         <div class="updates-actions-row">
-          <button id="runUpdatesBtn" class="btn btn-primary updates-run">Mettre à jour</button>
+          <button id="runUpdatesBtn" class="btn btn-primary updates-run" data-i18n="updates.run">Mettre à jour</button>
         </div>
         <div id="updateSpinner" class="update-spinner" role="status" aria-live="polite" hidden>
           <div class="spinner" aria-hidden="true"></div>
@@ -192,17 +97,35 @@
         <div id="updateResult" class="update-result" style="display:none;">
           <div id="updateFinalMessage" class="update-final-message"></div>
           <div id="updatedAppsIcons" class="icons-row updated-icons"></div>
-          <div class="raw-link-row"><button id="showRawUpdateBtn" class="mini-btn-link" type="button">Voir les détails…</button></div>
+          <div class="raw-link-row">
+            <button id="showRawUpdateBtn" class="mini-btn-link" type="button" data-i18n="updates.details">Voir les détails…</button>
+          </div>
         </div>
       </section>
       <section id="advancedPanel" class="panel-lite advanced-panel" hidden>
-        <h2 class="panel-heading-sm">Mode avancé</h2>
-        <p class="placeholder-strong">À venir</p>
-        <p class="placeholder-sub">De nouvelles options seront ajoutées ici prochainement.</p>
+    <h2 class="panel-heading-sm" data-i18n="advanced.title">Mode avancé</h2>
+    <p class="placeholder-strong"><span data-i18n="advanced.waiting">Fonctions avancées encore non disponibles dans l’UI — utilisez le terminal : am -h pour la liste complète des commandes.</span></p>
+
+    <ul class="commands condensed" aria-label="Commandes AM">
+      <li><code>am -h</code> — <span data-i18n="advanced.cmd.help">aide</span></li>
+      <li><code>am -l</code> — <span data-i18n="advanced.cmd.list">lister les apps disponibles</span></li>
+      <li><code>am -a &lt;PROGRAM&gt;</code> — <span data-i18n="advanced.cmd.about">informations sur l'app</span></li>
+      <li><code>am -i &lt;PROGRAM&gt;</code> — <span data-i18n="advanced.cmd.install">installer (ajouter --user pour local)</span></li>
+      <li><code>am -q &lt;mot-clé&gt;</code> — <span data-i18n="advanced.cmd.query">rechercher</span></li>
+      <li><code>am -u</code> — <span data-i18n="advanced.cmd.update">mettre à jour (ou am -u &lt;PROGRAM&gt;)</span></li>
+      <li><code>am -s</code> — <span data-i18n="advanced.cmd.updatemodules">mettre à jour AM/modules</span></li>
+      <li><code>am -R &lt;PROGRAM&gt;</code> — <span data-i18n="advanced.cmd.remove">supprimer</span></li>
+      <li><code>am -e &lt;git-url&gt; &lt;appname&gt; [keyword]</code> — <span data-i18n="advanced.cmd.extra">installer depuis GitHub</span></li>
+      <li><code>am translate</code> — <span data-i18n="advanced.cmd.translate">gérer traductions</span></li>
+    </ul>
+
+    <p class="note"><em><span data-i18n="advanced.note.appman">Pour la version sans privilèges, remplacez <code>am</code> par <code>appman</code>.</span></em></p>
+
+    <p class="docs-link"><a href="https://github.com/ivan-hc/AM" target="_blank" rel="noopener">Documentation complète & guides → AM (GitHub)</a></p>
       </section>
       <div id="apps" class="app-list" aria-live="polite" aria-busy="true"></div>
       <section id="appDetails" class="app-details" hidden>
-        <button id="backToListBtn" class="btn btn-outline back-btn">← Retour</button>
+    <button id="backToListBtn" class="btn btn-outline back-btn" data-i18n="details.back">← Retour</button>
         <div class="details-header">
           <img id="detailsIcon" alt="Icône" />
           <div class="details-head-text">
@@ -210,57 +133,57 @@
           </div>
         </div>
         <div class="details-actions">
-          <button id="detailsInstallBtn" class="btn btn-primary">Installer</button>
+          <button id="detailsInstallBtn" class="btn btn-primary" data-i18n="details.install">Installer</button>
           <button id="detailsForceCancelBtn" class="btn btn-outline danger" title="Forcer l'annulation" aria-label="Forcer l'annulation" hidden style="padding:6px 10px;">✕</button>
-          <button id="detailsUninstallBtn" class="btn btn-outline">Désinstaller</button>
+          <button id="detailsUninstallBtn" class="btn btn-outline" data-i18n="details.uninstall">Désinstaller</button>
         </div>
         <div id="installStream" class="install-stream" hidden>
           <div class="install-stream-head">
-            <div class="install-stream-status" id="installStreamStatus">En cours…</div>
-            <div class="install-stream-meta"><span id="installStreamElapsed">0s</span> – <span id="installStreamLines">0 lignes</span> · <button id="installStreamToggle" class="mini-link-btn" aria-expanded="false" type="button">Afficher le log</button></div>
+            <div class="install-stream-status" id="installStreamStatus" data-i18n="install.status">En cours…</div>
+            <div class="install-stream-meta"><span id="installStreamElapsed">0s</span> – <span id="installStreamLines" data-i18n="install.lines">0 lignes</span> · <button id="installStreamToggle" class="mini-link-btn" aria-expanded="false" type="button" data-i18n="install.log">Afficher le log</button></div>
           </div>
             <pre id="installStreamLog" class="install-stream-log" aria-label="Journal installation" tabindex="0" hidden></pre>
         </div>
         <div class="details-long-wrapper">
-          <h3 class="details-section-title">Description</h3>
+          <h3 class="details-section-title" data-i18n="details.desc">Description</h3>
           <p id="detailsLong" class="details-long"></p>
         </div>
         <div id="detailsGallery" class="details-gallery" hidden>
-          <h3 class="details-gallery-title">Captures</h3>
+          <h3 class="details-gallery-title" data-i18n="details.captures">Captures</h3>
           <div id="detailsGalleryInner" class="gallery-row"></div>
         </div>
       </section>
     </main>
-
     <div id="toast" class="toast" role="status" aria-live="polite" hidden></div>
   </div>
 
   <!-- Lightbox pour les captures -->
   <div id="lightbox" class="lightbox" role="dialog" aria-modal="true" aria-label="Aperçu de la capture" hidden>
-    <button id="lightboxClose" class="lightbox-close" aria-label="Fermer">✕</button>
-    <button id="lightboxPrev" class="lightbox-nav prev" aria-label="Précédente">‹</button>
+  <button id="lightboxClose" class="lightbox-close" aria-label="Fermer" data-i18n-aria-label="lightbox.close">✕</button>
+  <button id="lightboxPrev" class="lightbox-nav prev" aria-label="Précédente" data-i18n-aria-label="lightbox.prev">‹</button>
     <figure class="lightbox-figure">
       <img id="lightboxImage" alt="Capture" />
       <figcaption id="lightboxCaption" class="lightbox-caption"></figcaption>
     </figure>
     <button id="lightboxNext" class="lightbox-nav next" aria-label="Suivante">›</button>
+  <button id="lightboxNext" class="lightbox-nav next" aria-label="Suivante" data-i18n-aria-label="lightbox.next">›</button>
   </div>
 
   <!-- Modale sortie brute mises à jour -->
   <div id="rawUpdateModal" class="modal" role="dialog" aria-modal="true" aria-label="Sortie de la mise à jour" hidden>
     <div class="modal-dialog">
       <div class="modal-header">
-        <h3 class="modal-title">Détails de la mise à jour</h3>
-        <button id="rawUpdateClose" class="modal-close" aria-label="Fermer">✕</button>
+    <h3 class="modal-title" data-i18n="modal.updateTitle">Détails de la mise à jour</h3>
+    <button id="rawUpdateClose" class="modal-close" aria-label="Fermer" data-i18n-aria-label="modal.close">✕</button>
       </div>
       <div class="modal-body">
         <pre id="rawUpdatePre" class="raw-pre" aria-label="Sortie brute" tabindex="0"></pre>
       </div>
       <div class="modal-footer">
-        <button id="rawCopyBtn" class="mini-btn" type="button">Copier</button>
-        <button id="rawSaveBtn" class="mini-btn" type="button">Enregistrer…</button>
-        <div class="grow"></div>
-        <button id="rawUpdateClose2" class="btn btn-outline" type="button">Fermer</button>
+    <button id="rawCopyBtn" class="mini-btn" type="button" data-i18n="modal.copy">Copier</button>
+    <button id="rawSaveBtn" class="mini-btn" type="button" data-i18n="modal.save">Enregistrer…</button>
+    <div class="grow"></div>
+    <button id="rawUpdateClose2" class="btn btn-outline" type="button" data-i18n="modal.closeBtn">Fermer</button>
       </div>
     </div>
   </div>
@@ -271,8 +194,8 @@
       <div class="confirm-body">
         <p id="actionConfirmMessage" class="confirm-message"></p>
         <div class="confirm-actions">
-          <button id="actionConfirmCancel" class="btn btn-soft-neutral" type="button">Annuler</button>
-          <button id="actionConfirmOk" class="btn" type="button">Valider</button>
+          <button id="actionConfirmCancel" class="btn btn-soft-neutral" type="button" data-i18n="confirm.cancel">Annuler</button>
+          <button id="actionConfirmOk" class="btn" type="button" data-i18n="confirm.ok">Valider</button>
         </div>
       </div>
     </div>
@@ -280,4 +203,3 @@
 
   <script src="renderer.js"></script>
 </body>
-</html>

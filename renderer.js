@@ -1,7 +1,31 @@
 function getIconUrl(app) {
   return `appicon://${app}.png`;
 }
-
+// Fallback global : si une image `appicon://` échoue, charger depuis raw.githubusercontent
+(function installAppiconFallback(){
+  document.addEventListener('error', (ev) => {
+    try {
+      const el = ev.target;
+      if (!el || el.tagName !== 'IMG') return;
+      const src = String(el.src || '');
+      if (!src.startsWith('appicon://')) return;
+      // éviter les boucles de fallback
+      if (el.dataset.__appiconFallbackTried) return;
+      el.dataset.__appiconFallbackTried = '1';
+      const name = src.replace(/^appicon:\/\//i, '').replace(/\?.*$/, '').replace(/#.*/, '');
+      const remote = 'https://raw.githubusercontent.com/Portable-Linux-Apps/Portable-Linux-Apps.github.io/main/icons/' + name;
+      // log for diagnostics
+      try {
+        console.warn('appicon fallback: replacing', src, 'with', remote);
+        if (window.electronAPI && typeof window.electronAPI.purgeIconsCache !== 'undefined') {
+          try { window.electronAPI.openExternal && window.electronAPI.openExternal(remote); } catch(_){}
+        }
+      } catch(_){}
+      // Remplacer après un petit délai pour laisser le navigateur finir l'événement
+      setTimeout(()=> { try { el.src = remote; } catch(_){} }, 10);
+    } catch(_) {}
+  }, true);
+})();
 // --- Ajustement hauteur header & gestion erreurs (mode fenêtre native) ---
 (function initHeaderMetrics(){
   const applyHeaderHeight = () => {
@@ -167,10 +191,10 @@ function removeFromQueue(name){
     window.__queueRefreshTimeout = setTimeout(()=>{
       try { refreshAllInstallButtons(); } catch(e) { console.error('Erreur refreshAllInstallButtons', e); }
     }, 30);
-    showToast(name + ' retirée de la file');
+  showToast(t('toast.removedFromQueue', {name}));
   } catch(e) {
     console.error('Erreur removeFromQueue', e);
-    showToast('Erreur lors du retrait de la file');
+  showToast(t('toast.removeQueueError'));
   }
   return true;
 }
@@ -184,23 +208,23 @@ function refreshDetailsInstallButtonForQueue(){
     // Bouton devient annulation
     detailsInstallBtn.disabled = false;
     detailsInstallBtn.classList.remove('loading');
-    detailsInstallBtn.textContent = 'Installation… ✕';
+    detailsInstallBtn.textContent = t('details.install') + '… ✕';
     detailsInstallBtn.setAttribute('data-action','cancel-install');
-    detailsInstallBtn.setAttribute('aria-label','Annuler installation en cours ('+name+')');
+    detailsInstallBtn.setAttribute('aria-label', t('install.cancel') || 'Annuler installation en cours ('+name+')');
     return;
   }
   const pos = getQueuePosition(name);
   if (pos !== -1){
     detailsInstallBtn.disabled = false;
     detailsInstallBtn.classList.remove('loading');
-    detailsInstallBtn.textContent = 'En file (#' + pos + ') ✕';
+    detailsInstallBtn.textContent = t('install.queued') ? t('install.queued').replace('{pos}', pos) : ('En file (#' + pos + ') ✕');
     detailsInstallBtn.setAttribute('data-action','remove-queue');
-    detailsInstallBtn.setAttribute('aria-label', 'Retirer de la file (' + name + ')');
+    detailsInstallBtn.setAttribute('aria-label', t('install.removeQueue') || ('Retirer de la file (' + name + ')'));
     return;
   }
   // Sinon si déjà installée, on masque ailleurs, mais reset label au cas où
   if (!detailsInstallBtn.hidden){
-    detailsInstallBtn.textContent = 'Installer';
+    detailsInstallBtn.textContent = t('details.install');
     detailsInstallBtn.classList.remove('loading');
     detailsInstallBtn.disabled = false;
     detailsInstallBtn.setAttribute('data-action','install');
@@ -215,21 +239,21 @@ function refreshListInstallButtons(){
     if (!name) return;
     // Si appli déjà installée, ce bouton devrait avoir disparu après re-render.
     if (activeInstallSession.id && !activeInstallSession.done && activeInstallSession.name === name){
-      btn.textContent = 'Installation… ✕';
+      btn.textContent = t('details.install') + '… ✕';
       btn.disabled = false;
       btn.setAttribute('data-action','cancel-install');
-      btn.setAttribute('aria-label','Annuler installation en cours ('+name+')');
+      btn.setAttribute('aria-label', t('install.cancel') || 'Annuler installation en cours ('+name+')');
       return;
     }
     const pos = getQueuePosition(name);
     if (pos !== -1){
-      btn.textContent = 'En file (#' + pos + ') ✕';
+      btn.textContent = t('install.queued') ? t('install.queued').replace('{pos}', pos) : ('En file (#' + pos + ') ✕');
       btn.disabled = false;
       btn.setAttribute('data-action','remove-queue');
-      btn.setAttribute('aria-label','Retirer de la file (' + name + ')');
+      btn.setAttribute('aria-label', t('install.removeQueue') || ('Retirer de la file (' + name + ')'));
       return;
     }
-    btn.textContent = 'Installer';
+    btn.textContent = t('details.install');
     btn.disabled = false;
     btn.setAttribute('data-action','install');
   });
@@ -284,7 +308,7 @@ function processNextInstall(){
   if (tile) tile.classList.add('busy');
   const inlineBtn = document.querySelector(`.inline-action.install[data-app="${CSS.escape(next)}"]`);
   if (inlineBtn) inlineBtn.disabled = true;
-  showToast('Installation de ' + next + '…');
+  showToast(t('toast.installing', {name: next}));
   startStreamingInstall(next).catch(() => {
     // Fallback: exécuter via amAction puis enchaîner
     window.electronAPI.amAction('install', next).then(()=>{
@@ -301,13 +325,13 @@ function enqueueInstall(name){
   if (!name) return;
   // Vérifier si déjà en cours ou dans la file
   if ((activeInstallSession.name === name && !activeInstallSession.done) || installQueue.includes(name)) {
-    showToast(name + ' déjà en cours ou en file');
+    showToast(t('toast.alreadyInQueue', {name}));
     return;
   }
   if (activeInstallSession.id && !activeInstallSession.done) {
     installQueue.push(name);
   refreshQueueUI();
-    showToast(name + ' ajouté à la file (' + installQueue.length + ')');
+  showToast(t('toast.addedToQueue', {name, count: installQueue.length}));
   } else {
     installQueue.push(name);
   refreshQueueUI();
@@ -396,6 +420,457 @@ let lightboxState = { images: [], index: 0, originApp: null };
 
 // Cache descriptions (réinstallé)
 const descriptionCache = new Map();
+// --- Gestion multilingue ---
+const translations = {
+  fr: {
+    'toast.cancelRequested': 'Annulation demandée…',
+    'toast.uninstalling': 'Désinstallation de {name}…',
+    'updates.none': 'Aucune mise à jour nécessaire.',
+    'updates.done': 'Mises à jour effectuées (détails dans la sortie).',
+    'confirm.installTitle': "Confirmer l'installation",
+    'confirm.installMsg': "Installer {name} ?",
+    'confirm.uninstallTitle': "Confirmer la désinstallation",
+    'confirm.uninstallMsg': "Voulez-vous vraiment désinstaller {name} ?",
+    'install.starting': 'Démarrage…',
+    'install.error': 'Erreur',
+    'install.cancelled': 'Annulée',
+    'install.done': 'Terminé',
+    'install.failed': 'Échec (#{code})',
+    'install.hideLog': 'Masquer le log',
+    'install.status': 'En cours…',
+    'install.log': 'Afficher le log',
+    'install.cancel': 'Annuler installation en cours',
+    'install.queued': 'En file (#{pos}) ✕',
+    'install.removeQueue': 'Retirer de la file',
+    'main.title': 'AM App Store',
+    'search.placeholder': 'Rechercher des applications…',
+    'settings.theme': 'Thème',
+    'settings.lang': 'Langue',
+    'settings.auto': 'Auto',
+    'settings.fr': 'Français',
+    'settings.en': 'Anglais',
+    'settings.it': 'Italien',
+    'settings.light': 'Clair',
+    'settings.dark': 'Sombre',
+    'settings.coming': 'À venir',
+    'settings.future': 'De nouvelles options seront ajoutées ici prochainement.',
+    'settings.purge': 'Vider le cache des icônes',
+    'settings.title': 'Paramètres',
+  'settings.links': 'Liens',
+  'settings.openExternal': 'Ouvrir les liens dans le navigateur externe',
+    'window.min': 'Réduire',
+    'window.max': 'Maximiser / Restaurer',
+    'window.close': 'Fermer',
+    'tabs.all': 'Tout',
+    'tabs.installed': 'Installées',
+    'tabs.updates': 'Mises à jour',
+    'tabs.advanced': 'Mode avancé',
+    'refresh.title': 'Rafraîchir la liste',
+    'refresh.aria': 'Rafraîchir',
+    'modeMenu.title': 'Changer de mode d\'affichage',
+    'modeMenu.grid': 'Grille',
+    'modeMenu.list': 'Liste',
+    'modeMenu.icons': 'Icônes',
+    'modeMenu.cards': 'Cartes',
+    'updates.title': 'Mettre à jour AM et toutes les applications installées',
+    'updates.run': 'Mettre à jour',
+    'updates.loading': 'Recherche de mises à jour et installation si nécessaire…',
+    'updates.details': 'Voir les détails…',
+    'updates.updatedApps': 'Applications mises à jour :',
+    'updates.duration': ' (Durée {dur}s)',
+    'details.loadingDesc': 'Récupération distante en cours...\n\nNom interne: {name}',
+    'details.errorDesc': 'Impossible de récupérer la description distante.\n{error}',
+    'error.unknown': 'Erreur inconnue',
+    'error.ipc': 'IPC échec: {msg}',
+    'settings.purging': 'Vidage…',
+    'settings.done': 'Terminé.',
+    'settings.removedFiles': '{count} fichier(s) supprimé(s).',
+    'settings.purgeError': 'Erreur purge',
+    'toast.noUpdateLog': 'Aucun log de mise à jour disponible.',
+    'toast.copied': 'Copié dans le presse-papiers.',
+    'toast.copyError': 'Erreur de copie.',
+    'toast.saveError': 'Erreur de sauvegarde.',
+    'toast.refreshing': 'Rafraîchissement…',
+    'toast.updating': 'Mise à jour en cours…',
+    'toast.removedFromQueue': 'Retiré de la file d\'attente.',
+    'toast.removeQueueError': 'Erreur lors de la suppression de la file.',
+    'toast.alreadyInQueue': '{name} est déjà dans la file.',
+    'toast.addedToQueue': '{name} ajouté à la file ({count} en attente).',
+    'advanced.title': 'Mode avancé',
+    'advanced.coming': 'À venir',
+    'advanced.future': 'De nouvelles options seront ajoutées ici prochainement.',
+      'advanced.waiting': 'Fonctions avancées encore non disponibles dans l’UI — utilisez le terminal : am -h pour la liste complète des commandes.',
+      'advanced.cmd.help': 'aide',
+      'advanced.cmd.list': 'lister les apps disponibles',
+      'advanced.cmd.about': 'informations sur l\'app',
+      'advanced.cmd.install': 'installer (ajouter --user pour local)',
+      'advanced.cmd.query': 'rechercher',
+      'advanced.cmd.update': 'mettre à jour (ou am -u {PROGRAM})',
+      'advanced.cmd.updatemodules': 'mettre à jour AM/modules',
+      'advanced.cmd.remove': 'supprimer',
+      'advanced.cmd.extra': 'installer depuis GitHub',
+      'advanced.cmd.translate': 'gérer traductions',
+      'advanced.note.appman': 'Pour la version sans privilèges, remplacez am par appman',
+    'details.back': '← Retour',
+    'details.desc': 'Description',
+    'details.captures': 'Captures',
+    'details.install': 'Installer',
+    'details.uninstall': 'Désinstaller',
+    'install.status': 'En cours…',
+    'install.lines': '0 lignes',
+    'install.log': 'Afficher le log',
+    'lightbox.close': 'Fermer',
+    'lightbox.prev': 'Précédente',
+    'lightbox.next': 'Suivante',
+    'modal.updateTitle': 'Détails de la mise à jour',
+    'modal.close': 'Fermer',
+    'modal.copy': 'Copier',
+    'modal.save': 'Enregistrer…',
+    'modal.closeBtn': 'Fermer',
+    'confirm.cancel': 'Annuler',
+    'confirm.ok': 'Valider',
+  },
+  en: {
+    'toast.cancelRequested': 'Cancel requested…',
+    'toast.uninstalling': 'Uninstalling {name}…',
+    'updates.none': 'No update needed.',
+    'updates.done': 'Updates done (see output for details).',
+    'confirm.installTitle': "Confirm installation",
+    'confirm.installMsg': "Install {name}?",
+    'confirm.uninstallTitle': "Confirm uninstall",
+    'confirm.uninstallMsg': "Do you really want to uninstall {name}?",
+    'install.starting': 'Starting…',
+    'install.error': 'Error',
+    'install.cancelled': 'Cancelled',
+    'install.done': 'Done',
+    'install.failed': 'Failed (#{code})',
+    'install.hideLog': 'Hide log',
+    'install.status': 'In progress…',
+    'install.log': 'Show log',
+    'install.cancel': 'Cancel ongoing installation',
+    'install.queued': 'In queue (#{pos}) ✕',
+    'install.removeQueue': 'Remove from queue',
+    'main.title': 'AM App Store',
+    'search.placeholder': 'Search for applications…',
+    'settings.theme': 'Theme',
+    'settings.lang': 'Language',
+    'settings.auto': 'Auto',
+    'settings.fr': 'French',
+    'settings.en': 'English',
+    'settings.it': 'Italian',
+    'settings.light': 'Light',
+    'settings.dark': 'Dark',
+    'settings.coming': 'Coming soon',
+    'settings.future': 'New options will be added here soon.',
+    'settings.purge': 'Clear icon cache',
+    'settings.title': 'Settings',
+  'settings.links': 'Links',
+  'settings.openExternal': 'Open links in external browser',
+    'window.min': 'Minimize',
+    'window.max': 'Maximize / Restore',
+    'window.close': 'Close',
+    'tabs.all': 'All',
+    'tabs.installed': 'Installed',
+    'tabs.updates': 'Updates',
+    'tabs.advanced': 'Advanced mode',
+    'refresh.title': 'Refresh list',
+    'refresh.aria': 'Refresh',
+    'modeMenu.title': 'Change display mode',
+    'modeMenu.grid': 'Grid',
+    'modeMenu.list': 'List',
+    'modeMenu.icons': 'Icons',
+    'modeMenu.cards': 'Cards',
+    'updates.title': 'Update AM and all installed apps',
+    'updates.run': 'Update',
+    'updates.loading': 'Searching for updates and installing if needed…',
+    'updates.details': 'Show details…',
+    'updates.updatedApps': 'Updated apps:',
+    'updates.duration': ' (Duration {dur}s)',
+    'details.loadingDesc': 'Fetching remote description...\n\nInternal name: {name}',
+    'details.errorDesc': 'Unable to fetch remote description.\n{error}',
+    'error.unknown': 'Unknown error',
+    'error.ipc': 'IPC failure: {msg}',
+    'settings.purging': 'Purging…',
+    'settings.done': 'Done.',
+    'settings.removedFiles': '{count} file(s) removed.',
+    'settings.purgeError': 'Purge error',
+    'toast.noUpdateLog': 'No update log available.',
+    'toast.copied': 'Copied to clipboard.',
+    'toast.copyError': 'Copy error.',
+    'toast.saveError': 'Save error.',
+    'toast.refreshing': 'Refreshing…',
+    'toast.updating': 'Updating…',
+    'toast.removedFromQueue': 'Removed from queue.',
+    'toast.removeQueueError': 'Error removing from queue.',
+    'toast.alreadyInQueue': '{name} is already in queue.',
+    'toast.addedToQueue': '{name} added to queue ({count} pending).',
+    'advanced.title': 'Advanced mode',
+    'advanced.coming': 'Coming soon',
+    'advanced.future': 'New options will be added here soon.',
+  'advanced.waiting': 'Advanced features are not yet available in the UI — use the terminal: am -h for the full command list.',
+  'advanced.cmd.help': 'help',
+  'advanced.cmd.list': 'list available apps',
+  'advanced.cmd.about': 'show app information',
+  'advanced.cmd.install': 'install (add --user for local)',
+  'advanced.cmd.query': 'search',
+  'advanced.cmd.update': 'update (or am -u {PROGRAM})',
+  'advanced.cmd.updatemodules': 'update AM/modules',
+  'advanced.cmd.remove': 'remove',
+  'advanced.cmd.extra': 'install from GitHub',
+  'advanced.cmd.translate': 'manage translations',
+  'advanced.note.appman': 'For the non-privileged version, replace am with appman',
+    'details.back': '← Back',
+    'details.desc': 'Description',
+    'details.captures': 'Screenshots',
+    'details.install': 'Install',
+    'details.uninstall': 'Uninstall',
+    'install.status': 'In progress…',
+    'install.lines': '0 lines',
+    'install.log': 'Show log',
+    'lightbox.close': 'Close',
+    'lightbox.prev': 'Previous',
+    'lightbox.next': 'Next',
+    'modal.updateTitle': 'Update details',
+    'modal.close': 'Close',
+    'modal.copy': 'Copy',
+    'modal.save': 'Save…',
+    'modal.closeBtn': 'Close',
+    'confirm.cancel': 'Cancel',
+    'confirm.ok': 'OK',
+  },
+  it: {
+    'toast.cancelRequested': 'Annullamento richiesto…',
+    'toast.uninstalling': 'Disinstallazione di {name}…',
+    'updates.none': 'Nessun aggiornamento necessario.',
+    'updates.done': 'Aggiornamenti completati (vedi dettagli nell’output).',
+    'confirm.installTitle': "Conferma installazione",
+    'confirm.installMsg': "Installare {name}?",
+    'confirm.uninstallTitle': "Conferma disinstallazione",
+    'confirm.uninstallMsg': "Vuoi davvero disinstallare {name}?",
+    'install.starting': 'Avvio…',
+    'install.error': 'Errore',
+    'install.cancelled': 'Annullata',
+    'install.done': 'Completato',
+    'install.failed': 'Fallito (#{code})',
+    'install.hideLog': 'Nascondi log',
+    'install.status': 'In corso…',
+    'install.log': 'Mostra log',
+    'install.cancel': 'Annulla installazione in corso',
+    'install.queued': 'In coda (#{pos}) ✕',
+    'install.removeQueue': 'Rimuovi dalla coda',
+    'main.title': 'AM App Store',
+    'search.placeholder': 'Cerca applicazioni…',
+    'settings.theme': 'Tema',
+    'settings.lang': 'Lingua',
+    'settings.auto': 'Auto',
+    'settings.fr': 'Francese',
+    'settings.en': 'Inglese',
+    'settings.it': 'Italiano',
+    'settings.light': 'Chiaro',
+    'settings.dark': 'Scuro',
+    'settings.coming': 'In arrivo',
+    'settings.future': 'Nuove opzioni saranno aggiunte presto.',
+    'settings.purge': 'Svuota cache icone',
+    'settings.title': 'Impostazioni',
+  'settings.links': 'Link',
+  'settings.openExternal': 'Apri i link nel browser esterno',
+    'window.min': 'Riduci',
+    'window.max': 'Massimizza / Ripristina',
+    'window.close': 'Chiudi',
+    'tabs.all': 'Tutto',
+    'tabs.installed': 'Installate',
+    'tabs.updates': 'Aggiornamenti',
+    'tabs.advanced': 'Modalità avanzata',
+    'refresh.title': 'Aggiorna elenco',
+    'refresh.aria': 'Aggiorna',
+    'modeMenu.title': 'Cambia modalità di visualizzazione',
+    'modeMenu.grid': 'Griglia',
+    'modeMenu.list': 'Lista',
+    'modeMenu.icons': 'Icone',
+    'modeMenu.cards': 'Carte',
+    'updates.title': 'Aggiorna AM e tutte le app installate',
+    'updates.run': 'Aggiorna',
+    'updates.loading': 'Ricerca aggiornamenti e installazione se necessario…',
+    'updates.details': 'Mostra dettagli…',
+    'updates.updatedApps': 'App aggiornate:',
+    'updates.duration': ' (Durata {dur}s)',
+    'details.loadingDesc': 'Recupero descrizione remota...\n\nNome interno: {name}',
+    'details.errorDesc': 'Impossibile recuperare la descrizione remota.\n{error}',
+    'error.unknown': 'Errore sconosciuto',
+    'error.ipc': 'Fallimento IPC: {msg}',
+    'settings.purging': 'Pulizia…',
+    'settings.done': 'Completato.',
+    'settings.removedFiles': '{count} file rimossi.',
+    'settings.purgeError': 'Errore pulizia',
+    'toast.noUpdateLog': 'Nessun log di aggiornamento disponibile.',
+    'toast.copied': 'Copiato negli appunti.',
+    'toast.copyError': 'Errore di copia.',
+    'toast.saveError': 'Errore di salvataggio.',
+    'toast.refreshing': 'Aggiornamento…',
+    'toast.updating': 'Aggiornamento in corso…',
+    'toast.removedFromQueue': 'Rimosso dalla coda.',
+    'toast.removeQueueError': 'Errore nella rimozione dalla coda.',
+    'toast.alreadyInQueue': '{name} è già in coda.',
+    'toast.addedToQueue': '{name} aggiunto alla coda ({count} in attesa).',
+    'advanced.title': 'Modalità avanzata',
+    'advanced.coming': 'In arrivo',
+    'advanced.future': 'Nuove opzioni saranno aggiunte presto.',
+  'advanced.waiting': 'Le funzionalità avanzate non sono ancora disponibili nell\'interfaccia — usa il terminale: am -h per la lista completa dei comandi.',
+  'advanced.cmd.help': 'aiuto',
+  'advanced.cmd.list': "elenca le app disponibili",
+  'advanced.cmd.about': "informazioni sull'app",
+  'advanced.cmd.install': 'installa (aggiungi --user per locale)',
+  'advanced.cmd.query': 'cerca',
+  'advanced.cmd.update': "aggiorna (o am -u {PROGRAM})",
+  'advanced.cmd.updatemodules': 'aggiorna AM/modules',
+  'advanced.cmd.remove': 'rimuovi',
+  'advanced.cmd.extra': 'installa da GitHub',
+  'advanced.cmd.translate': 'gestisci traduzioni',
+  'advanced.note.appman': "Per la versione senza privilegi, sostituisci am con appman",
+    'details.back': '← Indietro',
+    'details.desc': 'Descrizione',
+    'details.captures': 'Screenshot',
+    'details.install': 'Installa',
+    'details.uninstall': 'Disinstalla',
+    'install.status': 'In corso…',
+    'install.lines': '0 righe',
+    'install.log': 'Mostra log',
+    'lightbox.close': 'Chiudi',
+    'lightbox.prev': 'Precedente',
+    'lightbox.next': 'Successiva',
+    'modal.updateTitle': 'Dettagli aggiornamento',
+    'modal.close': 'Chiudi',
+    'modal.copy': 'Copia',
+    'modal.save': 'Salva…',
+    'modal.closeBtn': 'Chiudi',
+    'confirm.cancel': 'Annulla',
+    'confirm.ok': 'Conferma',
+  }
+};
+
+function getSystemLang() {
+  try {
+    // Prefer value fournie par le main / preload si disponible
+    const sys = (window.electronAPI && typeof window.electronAPI.systemLocale === 'function') ? window.electronAPI.systemLocale() : null;
+    const navLang = sys || navigator.language || navigator.userLanguage || 'fr';
+    const code = String(navLang).toLowerCase().split(/[-_.]/)[0];
+    if (code === 'fr' || code.startsWith('fr')) return 'fr';
+    if (code === 'it' || code.startsWith('it')) return 'it';
+    if (code === 'en' || code.startsWith('en')) return 'en';
+    // default fallback
+    return 'en';
+  } catch(_) { return 'en'; }
+}
+
+function getLangPref() {
+  const pref = localStorage.getItem('langPref') || 'auto';
+  if (pref === 'auto') return getSystemLang();
+  return pref;
+}
+
+function t(key) {
+  const lang = getLangPref();
+  let str = (translations[lang] && translations[lang][key]) || (translations['en'] && translations['en'][key]) || (translations['fr'] && translations['fr'][key]) || key;
+  if (arguments.length > 1 && typeof str === 'string') {
+    const vars = arguments[1];
+    Object.entries(vars).forEach(([k, v]) => {
+      str = str.replace(new RegExp(`#?\{${k}\}`, 'g'), v);
+    });
+  }
+  return str;
+}
+
+function applyTranslations() {
+  // Boutons dynamiques détails (install/uninstall)
+  if (detailsInstallBtn) detailsInstallBtn.textContent = t('details.install');
+  if (detailsUninstallBtn) detailsUninstallBtn.textContent = t('details.uninstall');
+  if (installStreamStatus) installStreamStatus.textContent = t('install.status');
+  if (installStreamToggle) installStreamToggle.textContent = t('install.log');
+  // Traduction générique de tous les éléments data-i18n et data-i18n-*
+  const lang = getLangPref();
+  // data-i18n (texte)
+  document.querySelectorAll('[data-i18n]').forEach(el => {
+    const key = el.getAttribute('data-i18n');
+    if (translations[lang] && translations[lang][key]) {
+      el.textContent = translations[lang][key];
+    }
+  });
+  // data-i18n-placeholder
+  document.querySelectorAll('[data-i18n-placeholder]').forEach(el => {
+    const key = el.getAttribute('data-i18n-placeholder');
+    if (translations[lang] && translations[lang][key]) {
+      el.setAttribute('placeholder', translations[lang][key]);
+    }
+  });
+  // data-i18n-title, data-i18n-aria-label, etc.
+  document.querySelectorAll('[data-i18n-title], [data-i18n-aria-label]').forEach(el => {
+    if (el.hasAttribute('data-i18n-title')) {
+      const key = el.getAttribute('data-i18n-title');
+      if (translations[lang] && translations[lang][key]) {
+        el.title = translations[lang][key];
+      }
+    }
+    if (el.hasAttribute('data-i18n-aria-label')) {
+      const key = el.getAttribute('data-i18n-aria-label');
+      if (translations[lang] && translations[lang][key]) {
+        el.setAttribute('aria-label', translations[lang][key]);
+      }
+    }
+  });
+  // Attributs spéciaux (ex: aria-label sur settingsPanel)
+  const settingsPanel = document.getElementById('settingsPanel');
+  if (settingsPanel) {
+    settingsPanel.setAttribute('aria-label', t('settings.title'));
+  }
+  // Titre bouton paramètres
+  const settingsBtn = document.getElementById('settingsBtn');
+  if (settingsBtn) settingsBtn.title = t('settings.title') + ' (Ctrl+,)';
+}
+
+// Appliquer la langue au chargement
+window.addEventListener('DOMContentLoaded', () => {
+  applyTranslations();
+  // Mettre à jour l'attribut lang du HTML
+  document.documentElement.setAttribute('lang', getLangPref());
+  // Synchroniser l'état des radios de sélection de langue avec la préférence enregistrée
+  try {
+    const stored = localStorage.getItem('langPref') || 'auto';
+    const radios = document.querySelectorAll('input[name="langPref"]');
+    radios.forEach(r => { try { r.checked = (r.value === stored); } catch(_){} });
+    // Ajouter un gestionnaire direct pour éviter toute ambiguïté de délégation
+    radios.forEach(r => {
+      try {
+        r.addEventListener('change', (ev) => {
+          ev.stopPropagation();
+          try { localStorage.setItem('langPref', r.value); } catch(_){ }
+          try { applyTranslations(); } catch(_){ }
+          try { document.documentElement.setAttribute('lang', getLangPref()); } catch(_){ }
+          // Mark handled to avoid delegated double handling
+          try { window.__langChangeHandled = true; } catch(_){ }
+          // reload to fully apply language where needed
+          try { window.location.reload(); } catch(_){ }
+        });
+      } catch(_){}
+    });
+  } catch(_) {}
+});
+
+// Gérer le changement de langue
+const settingsPanelLang = document.getElementById('settingsPanel');
+if (settingsPanelLang) {
+  settingsPanelLang.addEventListener('change', (ev) => {
+    const t = ev.target;
+    // évite double gestion si un handler direct a déjà traité
+    if (window.__langChangeHandled) { window.__langChangeHandled = false; return; }
+    if (t.name === 'langPref') {
+      localStorage.setItem('langPref', t.value);
+      applyTranslations();
+      document.documentElement.setAttribute('lang', getLangPref());
+      // Recharger la page pour appliquer complètement la nouvelle langue
+      window.location.reload();
+    }
+  });
+}
 
 // --- Préférences (thème & mode par défaut) ---
 // S'assurer que le panneau des mises à jour est caché au démarrage (sauf si onglet updates actif)
@@ -473,10 +948,10 @@ if (settingsBtn && settingsPanel) {
     purgeIconsBtn.addEventListener('click', async () => {
       purgeIconsBtn.disabled = true;
       const oldLabel = purgeIconsBtn.textContent;
-      purgeIconsBtn.textContent = 'Vidage…';
+      purgeIconsBtn.textContent = t('settings.purging');
       try {
         const res = await window.electronAPI.purgeIconsCache();
-        if (purgeIconsResult) purgeIconsResult.textContent = (res && typeof res.removed === 'number') ? `${res.removed} fichier(s) supprimé(s).` : 'Terminé.';
+        if (purgeIconsResult) purgeIconsResult.textContent = (res && typeof res.removed === 'number') ? t('settings.removedFiles', {count: res.removed}) : t('settings.done');
         // Forcer rechargement visible: nettoyer attributs src pour celles déjà en cache
         document.querySelectorAll('.app-tile img').forEach(img => {
           if (img.src.startsWith('appicon://')) {
@@ -486,7 +961,7 @@ if (settingsBtn && settingsPanel) {
             if (iconObserver) iconObserver.observe(img);
           }
         });
-      } catch(e){ if (purgeIconsResult) purgeIconsResult.textContent = 'Erreur purge'; }
+      } catch(e){ if (purgeIconsResult) purgeIconsResult.textContent = t('settings.purgeError'); }
       finally {
         purgeIconsBtn.textContent = oldLabel;
         purgeIconsBtn.disabled = false;
@@ -496,6 +971,51 @@ if (settingsBtn && settingsPanel) {
 }
 
 
+
+// --- Opening external links preference ---
+// Key: openExternalLinks (string '1' == true)
+const openExternalCheckbox = document.getElementById('openExternalLinksCheckbox');
+function loadOpenExternalPref() {
+  try {
+    const v = localStorage.getItem('openExternalLinks');
+    return v === '1';
+  } catch(_) { return false; }
+}
+function saveOpenExternalPref(val) {
+  try { localStorage.setItem('openExternalLinks', val ? '1' : '0'); } catch(_){}
+}
+// Initialiser checkbox état à l'ouverture du panneau
+if (openExternalCheckbox) {
+  try { openExternalCheckbox.checked = loadOpenExternalPref(); } catch(_){}
+  openExternalCheckbox.addEventListener('change', (ev) => {
+    try { saveOpenExternalPref(openExternalCheckbox.checked); } catch(_){}
+  });
+}
+
+// Global click interception for anchors to optionally open externally
+document.addEventListener('click', (ev) => {
+  try {
+    const a = ev.target.closest && ev.target.closest('a');
+    if (!a) return;
+    const href = a.getAttribute('href');
+    if (!href) return;
+    // Only handle absolute http(s) links
+    if (!/^https?:\/\//i.test(href)) return;
+    const openExternal = loadOpenExternalPref();
+    if (!openExternal) return; // default behaviour
+    ev.preventDefault();
+    ev.stopPropagation();
+    // Ask main to open externally if API available
+    if (window.electronAPI && typeof window.electronAPI.openExternal === 'function') {
+      window.electronAPI.openExternal(href).then(res => {
+        if (!res || !res.ok) console.warn('openExternal failed', res && res.error);
+      }).catch(err => console.warn('openExternal error', err));
+    } else {
+      // Fallback
+      try { window.open(href, '_blank', 'noopener'); } catch(e) { console.warn('fallback open', e); }
+    }
+  } catch(_){}
+}, { capture: true });
 function showToast(msg) {
   if (!toast) return;
   toast.textContent = msg;
@@ -509,7 +1029,7 @@ async function loadApps() {
   try {
     detailed = await window.electronAPI.listAppsDetailed();
   } catch (e) {
-    detailed = { all: [], installed: [], error: 'IPC échec: ' + (e?.message || e) };
+    detailed = { all: [], installed: [], error: t('error.ipc', {msg: e?.message || e}) };
   }
   if (!detailed.pmFound) {
     state.allApps = [];
@@ -553,6 +1073,7 @@ async function loadApps() {
 let iconObserver = null;
 function initIconObserver(){
   if ('IntersectionObserver' in window && !iconObserver){
+    // Charger plus tôt hors-écran pour réduire latence à l'apparition lors du scroll
     iconObserver = new IntersectionObserver(entries => {
       entries.forEach(entry => {
         if (entry.isIntersecting){
@@ -561,7 +1082,7 @@ function initIconObserver(){
           iconObserver.unobserve(img);
         }
       });
-    }, { rootMargin: '600px' }); // marge accrue pour charger plus tôt hors écran
+    }, { rootMargin: '1200px' }); // marge accrue pour charger encore plus tôt hors écran
   }
 }
 
@@ -603,9 +1124,11 @@ function render(list) {
           const pos = getQueuePosition(name);
           if (pos !== -1) { btnLabel = 'En file (#'+pos+') ✕'; actionAttr='remove-queue'; }
         }
-        actionsHTML = `<div class="actions"><button class="inline-action install" data-action="${actionAttr}" data-app="${name}"${disabledAttr}>${btnLabel}</button></div>`;
+        actionsHTML = `<div class=\"actions\"><button class=\"inline-action install\" data-action=\"${actionAttr}\" data-app=\"${name}\"${disabledAttr}>${btnLabel}</button></div>`;
       } else {
-        actionsHTML = `<div class="actions"><button class="inline-action uninstall" data-action="uninstall" data-app="${name}">Désinstaller</button></div>`;
+        actionsHTML = `<div class=\"actions\">`;
+        actionsHTML += `<button class=\"inline-action uninstall\" data-action=\"uninstall\" data-app=\"${name}\">${t('details.uninstall')}</button>`;
+        actionsHTML += `</div>`;
       }
     }
     // Badge état pour modes sans bouton inline
@@ -624,12 +1147,12 @@ function render(list) {
     tile.className = 'app-tile';
     tile.setAttribute('data-app', name);
     tile.innerHTML = isCards ? `
-      <img data-src="${getIconUrl(name)}" alt="${label}" loading="lazy" onerror="this.onerror=null; this.src='https://raw.githubusercontent.com/Portable-Linux-Apps/Portable-Linux-Apps.github.io/main/icons/${name}.png'; setTimeout(()=>{ if(this.naturalWidth<=1) this.src='https://raw.githubusercontent.com/Portable-Linux-Apps/Portable-Linux-Apps.github.io/main/icons/blank.png'; },1200);">
+  <img data-src="${getIconUrl(name)}" alt="${label}" loading="lazy" decoding="async" onerror="this.onerror=null; this.src='https://raw.githubusercontent.com/Portable-Linux-Apps/Portable-Linux-Apps.github.io/main/icons/${name}.png'; setTimeout(()=>{ if(this.naturalWidth<=1) this.src='https://raw.githubusercontent.com/Portable-Linux-Apps/Portable-Linux-Apps.github.io/main/icons/blank.png'; },1200);">
       <div class="tile-text">
         <div class="tile-name">${label} ${installed ? '<span class=\"installed-badge\" aria-label=\"Installée\" title=\"Installée\">✓</span>' : ''}${stateBadge}</div>
         <div class="tile-short">${shortDesc}</div>
       </div>` : `
-      <img data-src="${getIconUrl(name)}" alt="${label}" loading="lazy" onerror="this.onerror=null; this.src='https://raw.githubusercontent.com/Portable-Linux-Apps/Portable-Linux-Apps.github.io/main/icons/${name}.png'; setTimeout(()=>{ if(this.naturalWidth<=1) this.src='https://raw.githubusercontent.com/Portable-Linux-Apps/Portable-Linux-Apps.github.io/main/icons/blank.png'; },1200);">
+  <img data-src="${getIconUrl(name)}" alt="${label}" loading="lazy" decoding="async" onerror="this.onerror=null; this.src='https://raw.githubusercontent.com/Portable-Linux-Apps/Portable-Linux-Apps.github.io/main/icons/${name}.png'; setTimeout(()=>{ if(this.naturalWidth<=1) this.src='https://raw.githubusercontent.com/Portable-Linux-Apps/Portable-Linux-Apps.github.io/main/icons/blank.png'; },1200);">
       <div class="tile-text">
         <div class="tile-name">${label} ${installed ? '<span class=\"installed-badge\" aria-label=\"Installée\" title=\"Installée\">✓</span>' : ''}${stateBadge}</div>
         <div class="tile-short">${shortDesc}</div>
@@ -644,7 +1167,7 @@ function render(list) {
       if (iconObserver) iconObserver.observe(img); else { img.src = img.getAttribute('data-src'); img.removeAttribute('data-src'); }
       // Prioriser les 24 premières images pour un rendu plus vif
       if (buildTile._count === undefined) buildTile._count = 0;
-      if (buildTile._count < 24) {
+      if (buildTile._count < 48) {
         try { img.setAttribute('fetchpriority','high'); } catch(_){ }
       }
       buildTile._count++;
@@ -675,6 +1198,8 @@ function render(list) {
       appsDiv.setAttribute('aria-busy','false');
       // Synchroniser états install (après insertion DOM)
       refreshAllInstallButtons();
+      // Déclencher préchargement non bloquant des icônes restantes
+      try { prefetchPreloadImages(300, 6); } catch(_){}
     });
   } else {
     let index = 0;
@@ -695,10 +1220,40 @@ function render(list) {
       } else {
         appsDiv.setAttribute('aria-busy','false');
         refreshAllInstallButtons();
+        try { prefetchPreloadImages(300, 6); } catch(_){}
       }
     }
     processChunk();
   }
+}
+
+// Préchargement async throttlé des images encore non démarrées — démarre après rendu
+let _prefetchScheduled = false;
+function prefetchPreloadImages(limit = 200, concurrency = 6) {
+  // Ne pas relancer si déjà planifié
+  if (_prefetchScheduled) return;
+  _prefetchScheduled = true;
+  // Récupérer les images qui portent encore data-src
+  const imgs = Array.from(document.querySelectorAll('img[data-src]'));
+  if (!imgs.length) return;
+  // Trier par proximité avec le haut de la fenêtre
+  imgs.sort((a,b) => (a.getBoundingClientRect().top || 0) - (b.getBoundingClientRect().top || 0));
+  const toLoad = imgs.slice(0, Math.min(limit, imgs.length));
+  let idx = 0;
+  let active = 0;
+  function nextBatch(){
+    while (active < concurrency && idx < toLoad.length) {
+      const img = toLoad[idx++];
+      active++;
+      // Start load on next frame to avoid blocking
+      requestAnimationFrame(()=>{
+        try { if (img.getAttribute('data-src')) { img.src = img.getAttribute('data-src'); img.removeAttribute('data-src'); } } catch(_){}
+        active--; if (idx < toLoad.length) setTimeout(nextBatch, 0);
+      });
+    }
+  }
+  // lancer après un court délai pour laisser le rendu initial se stabiliser
+  setTimeout(nextBatch, 180);
 }
 
 function showDetails(appName) {
@@ -715,7 +1270,7 @@ function showDetails(appName) {
   }
   if (detailsName) detailsName.textContent = app.installed ? `${label} ✓` : label;
   if (detailsName) detailsName.dataset.app = app.name.toLowerCase();
-  if (detailsLong) detailsLong.textContent = 'Récupération distante en cours...\n\nNom interne: ' + app.name;
+  if (detailsLong) detailsLong.textContent = t('details.loadingDesc', {name: app.name});
   if (detailsGallery) detailsGallery.hidden = true;
   if (detailsInstallBtn) {
     detailsInstallBtn.hidden = !!app.installed;
@@ -730,7 +1285,7 @@ function showDetails(appName) {
       if (installStreamLog) installStreamLog.textContent = activeInstallSession.lines.join('\n') + (activeInstallSession.lines.length?'\n':'');
       if (installStreamToggle) {
         installStreamToggle.setAttribute('aria-expanded','false');
-        installStreamToggle.textContent = 'Afficher le log';
+        installStreamToggle.textContent = t('install.log');
         installStreamLog.hidden = true;
       }
       if (installStreamLines) installStreamLines.textContent = activeInstallSession.lines.length + (activeInstallSession.lines.length>1?' lignes':' ligne');
@@ -738,7 +1293,7 @@ function showDetails(appName) {
         const secs = Math.round((performance.now()-activeInstallSession.start)/1000);
         installStreamElapsed.textContent = secs + 's';
       }
-      if (installStreamStatus) installStreamStatus.textContent = 'En cours…';
+      if (installStreamStatus) installStreamStatus.textContent = t('install.status');
       // Empêcher relance
       if (detailsInstallBtn) { detailsInstallBtn.disabled = true; detailsInstallBtn.classList.add('loading'); }
     } else {
@@ -755,7 +1310,7 @@ function showDetails(appName) {
   document.body.classList.add('details-mode');
   if (appsDiv) appsDiv.hidden = true;
   loadRemoteDescription(app.name).catch(err => {
-    if (detailsLong) detailsLong.textContent = 'Impossible de récupérer la description distante.\n' + (err?.message || err || 'Erreur inconnue');
+    if (detailsLong) detailsLong.textContent = t('details.errorDesc', {error: err?.message || err || t('error.unknown')});
   });
 }
 
@@ -802,15 +1357,15 @@ detailsInstallBtn?.addEventListener('click', async () => {
   if (action === 'cancel-install') {
     if (activeInstallSession.id) {
       try { await window.electronAPI.installCancel(activeInstallSession.id); } catch(_){ }
-      showToast('Annulation demandée…');
+  showToast(t('toast.cancelRequested'));
     }
     return;
   }
   if (action === 'remove-queue') { removeFromQueue(name); return; }
   const ok = await openActionConfirm({
-    title: 'Confirmer l\'installation',
-    message: `Installer <strong>${name}</strong> ?`,
-    okLabel: 'Installer'
+  title: t('confirm.installTitle'),
+  message: t('confirm.installMsg', {name: `<strong>${name}</strong>`}),
+  okLabel: t('details.install')
   });
   if (!ok) return;
   if (activeInstallSession.id && !activeInstallSession.done) {
@@ -832,15 +1387,15 @@ detailsUninstallBtn?.addEventListener('click', async () => {
   const name = detailsUninstallBtn.getAttribute('data-name');
   if (!name) return;
   const ok = await openActionConfirm({
-    title: 'Confirmer la désinstallation',
-    message: `Voulez-vous vraiment désinstaller <strong>${name}</strong> ?`,
-    okLabel: 'Désinstaller',
-    intent: 'danger'
+  title: t('confirm.uninstallTitle'),
+  message: t('confirm.uninstallMsg', {name: `<strong>${name}</strong>`}),
+  okLabel: t('details.uninstall'),
+  intent: 'danger'
   });
   if (!ok) return;
   detailsUninstallBtn.classList.add('loading');
   detailsUninstallBtn.disabled = true;
-  showToast('Désinstallation de ' + name + '…');
+  showToast(t('toast.uninstalling', {name}));
   try {
     await window.electronAPI.amAction('uninstall', name);
   } finally {
@@ -858,9 +1413,9 @@ appsDiv?.addEventListener('click', (e) => {
     if (!action || !appName) return;
     if (action === 'install') {
       openActionConfirm({
-        title: 'Confirmer l\'installation',
-        message: `Installer <strong>${appName}</strong> ?`,
-        okLabel: 'Installer'
+        title: t('confirm.installTitle'),
+        message: t('confirm.installMsg', {name: `<strong>${appName}</strong>`}),
+        okLabel: t('details.install')
       }).then(ok => {
         if (!ok) return;
         // Désactiver uniquement ce bouton (pas les autres)
@@ -871,16 +1426,16 @@ appsDiv?.addEventListener('click', (e) => {
       });
     } else if (action === 'uninstall') {
       openActionConfirm({
-        title: 'Confirmer la désinstallation',
-        message: `Voulez-vous vraiment désinstaller <strong>${appName}</strong> ?`,
-        okLabel: 'Désinstaller',
+        title: t('confirm.uninstallTitle'),
+        message: t('confirm.uninstallMsg', {name: `<strong>${appName}</strong>`}),
+        okLabel: t('details.uninstall'),
         intent: 'danger'
       }).then(ok => {
         if (!ok) return;
         actionBtn.disabled = true;
         const tile = actionBtn.closest('.app-tile');
         if (tile){ tile.classList.add('busy'); }
-        showToast('Désinstallation de ' + appName + '…');
+  showToast(t('toast.uninstalling', {name: appName}));
         window.electronAPI.amAction('uninstall', appName).then(() => {
           loadApps().then(()=> applySearch());
         });
@@ -888,7 +1443,7 @@ appsDiv?.addEventListener('click', (e) => {
     } else if (action === 'cancel-install') {
       if (activeInstallSession.id && activeInstallSession.name === appName) {
         window.electronAPI.installCancel(activeInstallSession.id).then(()=>{
-          showToast('Annulation demandée…');
+          showToast(t('toast.cancelRequested'));
         });
       }
       return;
@@ -908,7 +1463,7 @@ searchInput?.addEventListener('input', debounce(applySearch, 140));
 async function triggerRefresh() {
   if (!refreshBtn) return;
   if (refreshBtn.classList.contains('loading')) return; // éviter doubles clics
-  showToast('Rafraîchissement…');
+  showToast(t('toast.refreshing'));
   refreshBtn.classList.add('loading');
   try {
     await loadApps();
@@ -1045,7 +1600,7 @@ function handleUpdateCompletion(fullText){
     toShow = new Set([...updated].filter(x => filteredUpdated.has(x)));
   }
   if (toShow.size > 0) {
-    if (updateFinalMessage) updateFinalMessage.textContent = 'Applications mises à jour :';
+    if (updateFinalMessage) updateFinalMessage.textContent = t('updates.updatedApps');
     if (updatedAppsIcons) {
       updatedAppsIcons.innerHTML = '';
       toShow.forEach(name => {
@@ -1057,9 +1612,9 @@ function handleUpdateCompletion(fullText){
   } else {
     // Fallback: pas de noms détectés mais sortie non vide et pas de message "rien à faire" => supposer des mises à jour
     if (!nothingPhrase && (fullText || '').trim()) {
-      if (updateFinalMessage) updateFinalMessage.textContent = 'Mises à jour effectuées (détails dans la sortie).';
+      if (updateFinalMessage) updateFinalMessage.textContent = t('updates.done');
     } else {
-      if (updateFinalMessage) updateFinalMessage.textContent = 'Aucune mise à jour nécessaire.';
+      if (updateFinalMessage) updateFinalMessage.textContent = t('updates.none');
     }
     if (updatedAppsIcons) updatedAppsIcons.innerHTML = '';
   }
@@ -1068,7 +1623,7 @@ function handleUpdateCompletion(fullText){
 
 runUpdatesBtn?.addEventListener('click', async () => {
   if (runUpdatesBtn.disabled) return;
-  showToast('Recherche de mises à jour…');
+  showToast(t('toast.updating'));
   updateSpinner.hidden = false;
   updateResult.style.display = 'none';
   updateFinalMessage.textContent='';
@@ -1082,7 +1637,7 @@ runUpdatesBtn?.addEventListener('click', async () => {
     await loadApps();
     applySearch();
     const dur = Math.round((performance.now()-start)/1000);
-    if (updateFinalMessage && updateFinalMessage.textContent) updateFinalMessage.textContent += ` (Durée ${dur}s)`;
+    if (updateFinalMessage && updateFinalMessage.textContent) updateFinalMessage.textContent += t('updates.duration', {dur});
   // (Sortie supprimée)
   } catch(e){
   // (Sortie supprimée)
@@ -1101,12 +1656,12 @@ function openRawModal(){
 }
 function closeRawModal(){ if (rawUpdateModal) rawUpdateModal.hidden = true; }
 
-showRawUpdateBtn?.addEventListener('click', () => { if (!lastUpdateRaw) { showToast('Aucune sortie disponible'); return; } openRawModal(); });
+showRawUpdateBtn?.addEventListener('click', () => { if (!lastUpdateRaw) { showToast(t('toast.noUpdateLog')); return; } openRawModal(); });
 rawUpdateClose?.addEventListener('click', closeRawModal);
 rawUpdateClose2?.addEventListener('click', closeRawModal);
 window.addEventListener('keydown', (e) => { if (e.key === 'Escape' && !rawUpdateModal?.hidden) closeRawModal(); }, { capture:true });
 rawCopyBtn?.addEventListener('click', async () => {
-  try { await navigator.clipboard.writeText(lastUpdateRaw || ''); showToast('Copié'); } catch(_) { showToast('Impossible de copier'); }
+  try { await navigator.clipboard.writeText(lastUpdateRaw || ''); showToast(t('toast.copied')); } catch(_) { showToast(t('toast.copyError')); }
 });
 rawSaveBtn?.addEventListener('click', () => {
   try {
@@ -1118,7 +1673,7 @@ rawSaveBtn?.addEventListener('click', () => {
     a.download = 'update-log-'+ ts + '.txt';
     document.body.appendChild(a); a.click(); a.remove();
     setTimeout(()=> URL.revokeObjectURL(url), 2000);
-  } catch(e){ showToast('Erreur sauvegarde'); }
+  } catch(e){ showToast(t('toast.saveError')); }
 });
 
 // (Actions console supprimées)
@@ -1296,9 +1851,9 @@ function startStreamingInstall(name){
   if (activeTile) activeTile.classList.add('busy');
   if (installStream) {
     installStream.hidden = false;
-    if (installStreamStatus) installStreamStatus.textContent = 'Démarrage…';
-  if (installStreamLog) { installStreamLog.textContent=''; installStreamLog.hidden = true; }
-  if (installStreamToggle) { installStreamToggle.setAttribute('aria-expanded','false'); installStreamToggle.textContent='Afficher le log'; }
+    if (installStreamStatus) installStreamStatus.textContent = t('install.starting') || t('install.status');
+    if (installStreamLog) { installStreamLog.textContent=''; installStreamLog.hidden = true; }
+    if (installStreamToggle) { installStreamToggle.setAttribute('aria-expanded','false'); installStreamToggle.textContent = t('install.log'); }
     if (installStreamLines) installStreamLines.textContent='0 lignes';
     if (installStreamElapsed) installStreamElapsed.textContent='0s';
   }
@@ -1326,7 +1881,7 @@ if (window.electronAPI.onInstallProgress){
     if (currentInstallId && msg.id !== currentInstallId) return; // ignorer autres installations (future multi support)
     switch(msg.kind){
       case 'start':
-        if (installStreamStatus) installStreamStatus.textContent = 'En cours…';
+        if (installStreamStatus) installStreamStatus.textContent = t('install.status');
         // Assurer synchro du bouton détails si rendu avant ID
         refreshAllInstallButtons();
         break;
@@ -1350,17 +1905,17 @@ if (window.electronAPI.onInstallProgress){
         }
         break;
       case 'error':
-        if (installStreamStatus) installStreamStatus.textContent = 'Erreur';
+        if (installStreamStatus) installStreamStatus.textContent = t('install.error') || 'Erreur';
         detailsInstallBtn?.classList.remove('loading');
         detailsInstallBtn?.removeAttribute('disabled');
         setTimeout(()=> { if (installStream) installStream.hidden = true; }, 5000);
         break;
       case 'cancelled':
-        if (installStreamStatus) installStreamStatus.textContent = 'Annulée';
+        if (installStreamStatus) installStreamStatus.textContent = t('install.cancelled') || 'Annulée';
         if (detailsInstallBtn) {
           detailsInstallBtn.classList.remove('loading');
           detailsInstallBtn.disabled = false;
-          detailsInstallBtn.textContent = 'Installer';
+          detailsInstallBtn.textContent = t('details.install');
           detailsInstallBtn.setAttribute('data-action','install');
         }
         if (activeInstallSession && activeInstallSession.id === currentInstallId) {
@@ -1373,7 +1928,7 @@ if (window.electronAPI.onInstallProgress){
         refreshAllInstallButtons();
         break;
       case 'done':
-        if (installStreamStatus) installStreamStatus.textContent = msg.success ? 'Terminé' : 'Échec ('+ msg.code +')';
+        if (installStreamStatus) installStreamStatus.textContent = msg.success ? (t('install.done') || 'Terminé') : (t('install.failed', {code: msg.code}) || ('Échec ('+ msg.code +')'));
         detailsInstallBtn?.classList.remove('loading');
         detailsInstallBtn?.removeAttribute('disabled');
         if (activeInstallSession && activeInstallSession.id === currentInstallId) {
@@ -1416,7 +1971,7 @@ if (installStreamToggle && installStreamLog){
     const expanded = installStreamToggle.getAttribute('aria-expanded') === 'true';
     const next = !expanded;
     installStreamToggle.setAttribute('aria-expanded', String(next));
-    installStreamToggle.textContent = next ? 'Masquer le log' : 'Afficher le log';
+    installStreamToggle.textContent = next ? (t('install.hideLog') || 'Masquer le log') : t('install.log');
     installStreamLog.hidden = !next;
     if (next) requestAnimationFrame(()=> installStreamLog.scrollTop = installStreamLog.scrollHeight);
   });
