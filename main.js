@@ -600,7 +600,10 @@ ipcMain.handle('list-apps-detailed', async () => {
           if (line.includes('|')) {
             const cols = line.split('|').map(s => s.trim()).filter(Boolean);
             const name = cols[0] ? cols[0].split(/\s+/)[0].trim() : null;
-            const version = cols[1] ? cols[1] : null;
+            let rawVersion = cols[1] ? cols[1].trim() : null;
+            // Normalize common placeholders that mean 'unknown' or unsupported
+            if (rawVersion && /^(unsupported|n\/?a|na|unknown)$/i.test(rawVersion)) rawVersion = null;
+            const version = rawVersion;
             if (name) {
               installedSet.add(name);
               if (version) installedDesc.set(name, version);
@@ -609,7 +612,9 @@ ipcMain.handle('list-apps-detailed', async () => {
             // Fallback: first token is name, second token may be version
             const parts = line.split(/\s+/).filter(Boolean);
             const name = parts[0] || null;
-            const version = parts[1] || null;
+            let rawVersion = parts[1] || null;
+            if (rawVersion && /^(unsupported|n\/?a|na|unknown)$/i.test(rawVersion)) rawVersion = null;
+            const version = rawVersion;
             if (name) {
               installedSet.add(name);
               if (version) installedDesc.set(name, version);
