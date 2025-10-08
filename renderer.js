@@ -511,6 +511,7 @@ const translations = {
       'advanced.cmd.extra': 'installer depuis GitHub',
       'advanced.cmd.translate': 'gérer traductions',
       'advanced.note.appman': 'Pour la version sans privilèges, remplacez am par appman',
+      'advanced.docs': 'Documentation complète & guides →',
     'details.back': '← Retour',
     'details.desc': 'Description',
     'details.captures': 'Captures',
@@ -619,6 +620,7 @@ const translations = {
   'advanced.cmd.extra': 'install from GitHub',
   'advanced.cmd.translate': 'manage translations',
   'advanced.note.appman': 'For the non-privileged version, replace am with appman',
+  'advanced.docs': 'Complete documentation & guides →',
     'details.back': '← Back',
     'details.desc': 'Description',
     'details.captures': 'Screenshots',
@@ -727,6 +729,7 @@ const translations = {
   'advanced.cmd.extra': 'installa da GitHub',
   'advanced.cmd.translate': 'gestisci traduzioni',
   'advanced.note.appman': "Per la versione senza privilegi, sostituisci am con appman",
+  'advanced.docs': 'Documentazione completa & guide →',
     'details.back': '← Indietro',
     'details.desc': 'Descrizione',
     'details.captures': 'Screenshot',
@@ -1070,7 +1073,7 @@ async function loadApps() {
     }
     state.installed = installedNames;
   } catch(_) { state.installed = new Set(); }
-  if (installedCountEl) installedCountEl.textContent = String((detailed.installed || []).length);
+  if (installedCountEl) installedCountEl.textContent = String(state.allApps.filter(a => a.installed && a.hasDiamond).length);
   render(state.filtered);
 }
 
@@ -1641,6 +1644,8 @@ function handleUpdateCompletion(fullText){
     if (updatedAppsIcons) updatedAppsIcons.innerHTML = '';
   }
   if (updateResult) updateResult.style.display = 'block';
+  // Rafraîchir la liste complète pour mettre à jour les versions installées
+  setTimeout(() => { loadApps().then(applySearch); }, 400);
 }
 
 runUpdatesBtn?.addEventListener('click', async () => {
