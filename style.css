@@ -43,7 +43,7 @@ body {
 }
 
 /* Conteneur scroll principal: commence sous header + sous-barre combinée */
-.scroll-shell { position:fixed; top:calc(var(--header-h) + var(--subbar-h)); left:0; right:0; bottom:0; display:flex; flex-direction:column; overflow-y:auto; overscroll-behavior:contain; }
+.scroll-shell { position:fixed; top:calc(var(--header-h) + var(--subbar-h)); left:0; right:0; bottom:0; display:flex; flex-direction:column; overflow-y:auto; overscroll-behavior:contain; margin-top:8px; }
 /* En mode détail (header et tabs masqués) on remonte tout */
 /* En mode détails: on conserve le header et la barre d'onglets */
 body.details-mode .scroll-shell { top:calc(var(--header-h) + var(--subbar-h)); }
@@ -51,7 +51,7 @@ body.details-mode .scroll-shell { top:calc(var(--header-h) + var(--subbar-h)); }
 
 
 
-.app-header { display:grid; grid-template-columns: 1fr auto 1fr; align-items:center; padding:10px 16px; gap:12px; position:fixed; top:0; left:0; right:0; z-index:120; background:var(--bg); border-bottom:1px solid var(--border); backdrop-filter:saturate(1.2) blur(6px); }
+.app-header { display:grid; grid-template-columns: 1fr auto 1fr; align-items:center; padding:10px 16px; gap:12px; position:fixed; top:0; left:0; right:0; z-index:120; background:var(--bg); border-bottom:none; backdrop-filter:saturate(1.2) blur(6px); }
 .app-header { -webkit-app-region: drag; }
 .app-header input, .app-header button, .view-mode-switch, .window-buttons { -webkit-app-region: no-drag; }
 /* Boutons fenêtre intégrés (frameless) */
@@ -92,9 +92,30 @@ body.details-mode .scroll-shell { top:calc(var(--header-h) + var(--subbar-h)); }
 /* Donner une légère distinction supplémentaire sur focus clavier */
 .btn-settings:focus-visible { outline:2px solid var(--primary); outline-offset:2px; }
 .settings-panel-right { right:0; left:auto; top:110%; transform:none; }
-.brand { display:flex; align-items:center; gap:14px; }
-.brand-icon { width:80px; height:80px; object-fit:contain; }
-.brand-title { font-weight:600; font-size:18px; letter-spacing:.3px; }
+.brand {
+  display: flex;
+  align-items: center;
+  gap: 14px;
+  position: relative;
+  overflow: visible;
+}
+.brand-icon {
+  position: absolute;
+  left: -15px;
+  top: -33px;
+  width: 140px;
+  height: 140px;
+  object-fit: contain;
+  z-index: 2;
+}
+.brand-title {
+  font-weight:600;
+  font-size:18px;
+  letter-spacing:.3px;
+  margin-left:120px;
+  position: relative;
+  top: 25px;
+}
 /* Centre du header (refresh + settings) */
 .header-center { display:flex; align-items:center; justify-content:center; gap:8px; -webkit-app-region:no-drag; position:relative; }
 .header-center .search { position:relative; }
@@ -117,7 +138,7 @@ body.details-mode .scroll-shell { top:calc(var(--header-h) + var(--subbar-h)); }
 
 
 /* Sous-barre d'actions */
-.sub-bar { position:fixed; top:var(--header-h); left:0; right:0; z-index:115; background:var(--bg); backdrop-filter:saturate(1.2) blur(6px); border-bottom:1px solid var(--border); padding:4px 16px 8px; }
+.sub-bar { position:fixed; top:var(--header-h); left:0; right:0; z-index:115; background:var(--bg); backdrop-filter:saturate(1.2) blur(6px); border-bottom:none; padding:4px 16px 8px; }
 .tabs-row { display:flex; align-items:center; justify-content:center; gap:20px; }
 .tabs-row .tabs { flex:1; display:flex; justify-content:center; gap:10px; padding:4px 0 0; margin:0; }
 /* Rétablir la position de base du bloc view-mode-switch */
