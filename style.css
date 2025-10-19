@@ -1,3 +1,7 @@
+/* Liste de choix pour installation multiple */
+.multi-choice-list { display: flex; flex-direction: column; gap: 10px; margin: 10px 0; }
+.multi-choice-item { padding: 10px 14px; border: 1px solid var(--border); border-radius: 8px; background: var(--card); cursor: pointer; font-size: 15px; transition: background .18s; }
+.multi-choice-item:hover, .multi-choice-item.selected { background: var(--primary); color: #fff; }
 :root {
   --bg: #f6f8fa;
   --fg: #0b1320;
@@ -101,10 +105,10 @@ body.details-mode .scroll-shell { top:calc(var(--header-h) + var(--subbar-h)); }
 }
 .brand-icon {
   position: absolute;
-  left: -15px;
-  top: -33px;
-  width: 140px;
-  height: 140px;
+  left: 15px;
+  top: -10px;
+  width: 96px;
+  height: 96px;
   object-fit: contain;
   z-index: 2;
 }
@@ -282,12 +286,32 @@ body.theme-dark .install-state-badge.queued { background:linear-gradient(135deg,
 .app-tile .tile-text { display:flex; flex-direction:column; gap:4px; }
 .app-tile .tile-name { font-weight:600; font-size:14px; }
 .app-tile .tile-short { font-size:12px; color:var(--muted); line-height:1.3; max-height:2.6em; overflow:hidden; }
-.installed-badge { display:inline-inline; background:linear-gradient(135deg, #6faef5, #4f97ec); color:#fff; padding:2px 7px 2px 7px; font-size:11px; border-radius:999px; letter-spacing:.3px; font-weight:600; box-shadow:0 1px 2px rgba(0,0,0,.12); }
-@media (prefers-color-scheme: dark){
-  .installed-badge { background:linear-gradient(135deg, #3d78c7, #2f6bb8); box-shadow:0 1px 2px rgba(0,0,0,.6); }
+
+/* Badge installée : style neutre comme en vue détaillée */
+.installed-badge {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  min-width: 20px;
+  padding: 2px 7px;
+  font-size: 11px;
+  border-radius: 999px;
+  letter-spacing: .3px;
+  font-weight: 600;
+  background: #e3f1fd;
+  color: #0b4d85;
+  border: 1px solid #b5d7f4;
+  box-shadow: 0 1px 2px rgba(11,77,133,.08);
+  line-height: 1;
 }
-.installed-badge { display:inline-flex; align-items:center; justify-content:center; min-width:20px; }
-.installed-badge { line-height:1; }
+@media (prefers-color-scheme: dark){
+  .installed-badge {
+    background: var(--card);
+    color: var(--fg);
+    border: 1px solid var(--border);
+    box-shadow: 0 1px 2px rgba(0,0,0,.6);
+  }
+}
 
 /* Badge simple (compteur d'onglet par ex.) */
 .badge { display:inline-flex; align-items:center; justify-content:center; min-width:20px; padding:2px 7px; font-size:12px; border-radius:999px; background:var(--primary); color:#fff; font-weight:600; margin-left:6px; }
@@ -379,6 +403,8 @@ body.view-cards .app-tile .tile-short { font-size:13px; max-height:4.1em; overfl
 .details-header img { width:96px; height:96px; border-radius:20px; object-fit:cover; box-shadow:var(--shadow); }
 .details-head-text h2 { margin:0 0 6px; font-size:26px; font-weight:600; }
 .details-short { margin:0; font-size:14px; color:var(--muted); }
+
+/* Badge installée dans la vue détaillée : même style que la liste */
 .details-long-wrapper { margin-top:8px; background:var(--card); border:1px solid var(--border); padding:16px; border-radius:12px; box-shadow:var(--shadow); }
 /* .details-long fusion: taille + formatage multi-lignes */
 .details-long { font-size:13px; white-space:pre-wrap; line-height:1.4; margin:0; }

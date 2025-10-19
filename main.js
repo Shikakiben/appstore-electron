@@ -1,4 +1,18 @@
 const { app, BrowserWindow, ipcMain, Menu, protocol, shell } = require('electron');
+// ...existing code...
+
+// Handler IPC pour envoyer le choix utilisateur lors d'une installation à choix multiples
+ipcMain.handle('install-send-choice', async (event, installId, choice) => {
+  const child = activeInstalls.get(installId);
+  if (!child) return { ok:false, error:'Processus introuvable' };
+  try {
+    // Envoyer le choix au processus (stdin)
+    child.stdin.write(choice + '\n');
+    return { ok:true };
+  } catch(e){
+    return { ok:false, error: e.message || 'Erreur envoi choix' };
+  }
+});
 const path = require('path');
 const { exec, spawn } = require('child_process');
 const fs = require('fs');
@@ -449,7 +463,10 @@ ipcMain.handle('am-action', async (_event, action, software) => {
 // Pas d'annulation encore (peut être ajoutée plus tard).
 const activeInstalls = new Map();
 ipcMain.handle('install-start', async (event, name) => {
+  console.log('IPC install-start reçu pour', name);
   const pm = await detectPackageManager();
+  // Log le lancement du processus
+  console.log('Processus lancé:', pm, ['-i', name]);
   if (!pm) return { error: "Aucun gestionnaire 'am' ou 'appman' trouvé" };
   if (!name || typeof name !== 'string') return { error: 'Nom invalide' };
   const id = Date.now().toString(36) + '-' + Math.random().toString(36).slice(2,8);
@@ -464,6 +481,8 @@ ipcMain.handle('install-start', async (event, name) => {
   send({ kind:'start', name });
   const killTimer = setTimeout(() => { try { child.kill('SIGTERM'); } catch(_){} }, 10*60*1000); // 10 min sécurité
   function flushLines(chunk, isErr){
+  // Log chaque chunk reçu du processus
+  console.log('flushLines:', chunk.toString());
     const txt = chunk.toString();
     output += txt;
     let buffer = (isErr ? stderrRemainder : stdoutRemainder) + txt;
@@ -549,6 +568,12 @@ ipcMain.handle('list-apps-detailed', async () => {
         const lines = (listRes.stdout || '').split('\n');
         let inInstalled = false;
         let inCatalog = false;
+        const ignoreNamePatterns = [
+          /^YOU/i,
+          /^-/,
+          /^TOTAL/i,
+          /^\*has/i
+        ];
         for (const raw of lines) {
           const line = raw.trim();
           if (!line) continue;
@@ -565,15 +590,15 @@ ipcMain.handle('list-apps-detailed', async () => {
             desc = rest.slice(colonIdx + 1).trim();
             if (desc === '') desc = null;
           }
+          const name = left.split(/\s+/)[0].trim();
+          if (ignoreNamePatterns.some(re => re.test(name))) continue;
           if (inInstalled && !inCatalog) {
-            const name = left.split(/\s+/)[0].trim();
             if (name) {
               installedSet.add(name);
               diamondSet.add(name);
               if (desc) installedDesc.set(name, desc);
             }
           } else if (inCatalog) {
-            const name = left.split(/\s+/)[0].trim();
             if (name) {
               catalogSet.add(name);
               // The line had a leading '◆' (we trimmed it earlier), treat it as diamond-marked
@@ -591,6 +616,12 @@ ipcMain.handle('list-apps-detailed', async () => {
       // "◆ pycharm             | 2025.2.2               | appimage       | 823 MiB"
       try {
         const lines = (instRes.stdout || '').split('\n');
+        const ignoreNamePatterns = [
+          /^YOU/i,
+          /^-/,
+          /^TOTAL/i,
+          /^\*has/i
+        ];
         for (const raw of lines) {
           let line = raw.trim();
           if (!line) continue;
@@ -601,7 +632,7 @@ ipcMain.handle('list-apps-detailed', async () => {
             const cols = line.split('|').map(s => s.trim()).filter(Boolean);
             const name = cols[0] ? cols[0].split(/\s+/)[0].trim() : null;
             const version = cols[1] ? cols[1] : null;
-            if (name) {
+            if (name && !ignoreNamePatterns.some(re => re.test(name))) {
               installedSet.add(name);
               if (version) installedDesc.set(name, version);
             }
@@ -610,7 +641,7 @@ ipcMain.handle('list-apps-detailed', async () => {
             const parts = line.split(/\s+/).filter(Boolean);
             const name = parts[0] || null;
             const version = parts[1] || null;
-            if (name) {
+            if (name && !ignoreNamePatterns.some(re => re.test(name))) {
               installedSet.add(name);
               if (version) installedDesc.set(name, version);
             }
@@ -648,6 +679,4 @@ ipcMain.handle('window-control', (event, action) => {
 });
 
 
-// Fin fichier main.js simplifié
 
-// (Intégration terminal / streaming supprimée)

@@ -3,7 +3,7 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1" />
-  <title>AM App Store</title>
+  <title>App Manager</title>
   <link rel="stylesheet" href="style.css">
   <link rel="stylesheet" href="refresh-spinner-fix.css">
   <link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 16 16'%3E%3Ccircle cx='8' cy='8' r='7' fill='%233584e4'/%3E%3C/svg%3E">
@@ -14,8 +14,8 @@
 <body>
   <header class="app-header" data-tauri-drag-region>
     <div class="brand">
-      <img class="brand-icon" src="app-icon.png" alt="AM App Store Icon" aria-hidden="true">
-      <div class="brand-title" data-i18n="main.title">AM App Store</div>
+  <img class="brand-icon" src="app-icon.png" alt="App Manager Icon" aria-hidden="true">
+  <div class="brand-title" data-i18n="main.title">App Manager</div>
     </div>
     <div class="header-center" role="search" aria-label="Recherche">
       <div class="search">
@@ -202,4 +202,19 @@
   </div>
 
   <script src="renderer.js"></script>
+  <!-- Modale choix installation multiple -->
+  <div id="multiChoiceModal" class="modal" role="dialog" aria-modal="true" aria-label="Choix d'installation" hidden>
+    <div class="modal-dialog">
+      <div class="modal-header">
+        <h3 class="modal-title">Choisissez une variante à installer</h3>
+        <button id="multiChoiceClose" class="modal-close" aria-label="Fermer">✕</button>
+      </div>
+      <div class="modal-body">
+        <div id="multiChoiceList" class="multi-choice-list"></div>
+      </div>
+      <div class="modal-footer">
+        <button id="multiChoiceCancel" class="btn btn-soft-neutral" type="button">Annuler</button>
+      </div>
+    </div>
+  </div>
 </body>

@@ -201,6 +201,7 @@ function removeFromQueue(name){
 
 function refreshDetailsInstallButtonForQueue(){
   if (!detailsInstallBtn || !detailsInstallBtn.getAttribute('data-name')) return;
+  detailsInstallBtn.classList.remove('loading'); // suppression systématique du spinner
   const name = detailsInstallBtn.getAttribute('data-name');
   if (!name) return;
   // Active en cours
@@ -208,7 +209,7 @@ function refreshDetailsInstallButtonForQueue(){
     // Bouton devient annulation
     detailsInstallBtn.disabled = false;
     detailsInstallBtn.classList.remove('loading');
-    detailsInstallBtn.textContent = t('details.install') + '… ✕';
+    detailsInstallBtn.textContent = t('install.status') + ' ✕';
     detailsInstallBtn.setAttribute('data-action','cancel-install');
     detailsInstallBtn.setAttribute('aria-label', t('install.cancel') || 'Annuler installation en cours ('+name+')');
     return;
@@ -239,7 +240,7 @@ function refreshListInstallButtons(){
     if (!name) return;
     // Si appli déjà installée, ce bouton devrait avoir disparu après re-render.
     if (activeInstallSession.id && !activeInstallSession.done && activeInstallSession.name === name){
-      btn.textContent = t('details.install') + '… ✕';
+      btn.textContent = t('install.status') + ' ✕';
       btn.disabled = false;
       btn.setAttribute('data-action','cancel-install');
       btn.setAttribute('aria-label', t('install.cancel') || 'Annuler installation en cours ('+name+')');
@@ -348,6 +349,7 @@ const purgeIconsBtn = document.getElementById('purgeIconsBtn');
 const purgeIconsResult = document.getElementById('purgeIconsResult');
 const tabs = document.querySelectorAll('.tab');
 // Mise à jour
+let updateInProgress = false;
 const updatesPanel = document.getElementById('updatesPanel');
 const advancedPanel = document.getElementById('advancedPanel');
 const runUpdatesBtn = document.getElementById('runUpdatesBtn');
@@ -442,7 +444,7 @@ const translations = {
     'install.cancel': 'Annuler installation en cours',
     'install.queued': 'En file (#{pos}) ✕',
     'install.removeQueue': 'Retirer de la file',
-    'main.title': 'AM App Store',
+  'main.title': 'App Manager',
     'search.placeholder': 'Rechercher des applications…',
     'settings.theme': 'Thème',
     'settings.lang': 'Langue',
@@ -850,10 +852,18 @@ window.addEventListener('DOMContentLoaded', () => {
           try { document.documentElement.setAttribute('lang', getLangPref()); } catch(_){ }
           // Mark handled to avoid delegated double handling
           try { window.__langChangeHandled = true; } catch(_){ }
-          // Re-apply translations and re-render without full reload (avoid crashes)
-          try { applyTranslations(); } catch(_){}
-          try { document.documentElement.setAttribute('lang', getLangPref()); } catch(_){}
-          try { render(state.filtered); refreshAllInstallButtons(); } catch(_){}
+          // Correction : n'affiche la liste des applications que si l'onglet actif est un onglet 'application'
+          const appTabs = ['all', 'installed'];
+          if (appTabs.includes(state.activeCategory)) {
+            try { render(state.filtered); refreshAllInstallButtons(); } catch(_){}
+            if (appsDiv) appsDiv.hidden = false;
+            if (updatesPanel) updatesPanel.hidden = true;
+            if (advancedPanel) advancedPanel.hidden = true;
+          } else {
+            if (appsDiv) appsDiv.hidden = true;
+            if (updatesPanel) updatesPanel.hidden = (state.activeCategory !== 'updates');
+            if (advancedPanel) advancedPanel.hidden = (state.activeCategory !== 'advanced');
+          }
         });
       } catch(_){}
     });
@@ -1277,16 +1287,33 @@ function showDetails(appName) {
     detailsIcon.src = getIconUrl(app.name);
     detailsIcon.onerror = () => { detailsIcon.src = 'https://raw.githubusercontent.com/Portable-Linux-Apps/Portable-Linux-Apps.github.io/main/icons/blank.png'; };
   }
-  if (detailsName) detailsName.textContent = app.installed ? `${label}${version? ' · '+version : ''} ✓` : (version? `${label} · ${version}` : label);
+  if (detailsName) {
+    if (app.installed) {
+      detailsName.innerHTML = `${label}${version ? ' · ' + version : ''} <span class="installed-badge" aria-label="Installée" title="Installée">✓</span>`;
+    } else {
+      detailsName.textContent = version ? `${label} · ${version}` : label;
+    }
+  }
   if (detailsName) detailsName.dataset.app = app.name.toLowerCase();
   if (detailsLong) detailsLong.textContent = t('details.loadingDesc', {name: app.name});
   if (detailsGallery) detailsGallery.hidden = true;
   if (detailsInstallBtn) {
     detailsInstallBtn.hidden = !!app.installed;
-    detailsInstallBtn.disabled = false;
     detailsInstallBtn.setAttribute('data-name', app.name);
+    // Toujours retirer le spinner et réactiver le bouton
+  detailsInstallBtn.classList.remove('loading');
+  detailsInstallBtn.disabled = false;
+    if (activeInstallSession.id && !activeInstallSession.done && activeInstallSession.name === app.name) {
+      detailsInstallBtn.textContent = t('install.status') + ' ✕';
+      detailsInstallBtn.setAttribute('data-action','cancel-install');
+      detailsInstallBtn.setAttribute('aria-label', t('install.cancel') || 'Annuler installation en cours ('+app.name+')');
+    } else {
+      detailsInstallBtn.textContent = t('details.install');
+      detailsInstallBtn.setAttribute('data-action','install');
+      detailsInstallBtn.setAttribute('aria-label', t('details.install'));
+    }
+    refreshAllInstallButtons();
   }
-  refreshAllInstallButtons();
   // Restaurer panneau streaming si une installation en cours correspond à cette app
   if (installStream) {
     if (activeInstallSession.id && !activeInstallSession.done && activeInstallSession.name === app.name) {
@@ -1304,7 +1331,7 @@ function showDetails(appName) {
       }
       if (installStreamStatus) installStreamStatus.textContent = t('install.status');
       // Empêcher relance
-      if (detailsInstallBtn) { detailsInstallBtn.disabled = true; detailsInstallBtn.classList.add('loading'); }
+  if (detailsInstallBtn) { detailsInstallBtn.disabled = false; detailsInstallBtn.classList.remove('loading'); }
     } else {
       installStream.hidden = true;
       if (installStreamLog) installStreamLog.textContent='';
@@ -1327,6 +1354,8 @@ backToListBtn?.addEventListener('click', () => {
   if (appDetailsSection) appDetailsSection.hidden = true;
   document.body.classList.remove('details-mode');
   if (appsDiv) appsDiv.hidden = false;
+  // Nettoyer tous les états busy/spinner sur les tuiles
+  document.querySelectorAll('.app-tile.busy').forEach(t => t.classList.remove('busy'));
   // Restaurer scroll
   const scroller = document.querySelector('.scroll-shell');
   if (scroller) scroller.scrollTop = state.lastScrollY || 0;
@@ -1341,12 +1370,14 @@ function applySearch() {
     if (updatesPanel) updatesPanel.hidden = false;
     if (advancedPanel) advancedPanel.hidden = true;
     render([]);
+    if (appsDiv) appsDiv.innerHTML = '';
     return;
   }
   if (state.activeCategory === 'advanced') {
     if (advancedPanel) advancedPanel.hidden = false;
     if (updatesPanel) updatesPanel.hidden = true;
     render([]);
+    if (appsDiv) appsDiv.innerHTML = '';
     return;
   }
   if (updatesPanel) updatesPanel.hidden = true;
@@ -1540,11 +1571,20 @@ tabs.forEach(tab => {
     tab.classList.add('active');
     state.activeCategory = tab.getAttribute('data-category') || 'all';
     applySearch();
-    const isUpdates = state.activeCategory === 'updates';
-    const isAdvanced = state.activeCategory === 'advanced';
-    if (updatesPanel) updatesPanel.hidden = !isUpdates;
-    if (advancedPanel) advancedPanel.hidden = !isAdvanced;
-    if (!isUpdates && updateSpinner) updateSpinner.hidden = true;
+    const isUpdatesTab = state.activeCategory === 'updates';
+    const isAdvancedTab = state.activeCategory === 'advanced';
+    if (updatesPanel) updatesPanel.hidden = !isUpdatesTab;
+    if (advancedPanel) advancedPanel.hidden = !isAdvancedTab;
+    if (!isUpdatesTab && updateSpinner) updateSpinner.hidden = true;
+    if (isUpdatesTab) {
+      if (updateInProgress) {
+        runUpdatesBtn.disabled = true;
+        updateSpinner.hidden = false;
+      } else {
+        runUpdatesBtn.disabled = false;
+        updateSpinner.hidden = true;
+      }
+    }
     // Pas de terminal dans le mode avancé désormais
     if (document.body.classList.contains('details-mode')) {
       document.body.classList.remove('details-mode');
@@ -1650,6 +1690,7 @@ function handleUpdateCompletion(fullText){
 
 runUpdatesBtn?.addEventListener('click', async () => {
   if (runUpdatesBtn.disabled) return;
+  updateInProgress = true;
   showToast(t('toast.updating'));
   updateSpinner.hidden = false;
   updateResult.style.display = 'none';
@@ -1661,25 +1702,22 @@ runUpdatesBtn?.addEventListener('click', async () => {
     const res = await window.electronAPI.amAction('__update_all__');
     lastUpdateRaw = res || '';
     handleUpdateCompletion(res || '');
-    // Refresh app list to pick up new versions. Some backends may need a short moment
-    // after update to reflect new versions, so retry once if versions are still missing.
     await loadApps();
     applySearch();
-    // If some installed apps still lack a version, wait a bit and reload once more
     try {
       const needs = state.allApps.some(a => a.installed && (!a.version || String(a.version).toLowerCase().includes('unsupported')));
       if (needs) {
-        await new Promise(r => setTimeout(r, 1200));
+        await new Promise(r => setTimeout(r, 3000));
         await loadApps();
         applySearch();
       }
     } catch (_) {}
     const dur = Math.round((performance.now()-start)/1000);
     if (updateFinalMessage && updateFinalMessage.textContent) updateFinalMessage.textContent += t('updates.duration', {dur});
-  // (Sortie supprimée)
   } catch(e){
-  // (Sortie supprimée)
+    // (Sortie supprimée)
   } finally {
+    updateInProgress = false;
     updateSpinner.hidden = true;
     runUpdatesBtn.disabled = false;
   }
