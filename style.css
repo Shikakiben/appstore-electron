@@ -1,7 +1,52 @@
+/* Tableau pour choix multiples longs */
+.multi-choice-table {
+  width: 100%;
+  max-width: 520px;
+  margin: 18px auto;
+  border-collapse: separate;
+  border-spacing: 12px 10px;
+}
+.multi-choice-table td {
+  text-align: center;
+  vertical-align: middle;
+}
+.choice-dialog {
+  max-height: 80vh;
+  overflow-y: auto;
+}
 /* Liste de choix pour installation multiple */
-.multi-choice-list { display: flex; flex-direction: column; gap: 10px; margin: 10px 0; }
-.multi-choice-item { padding: 10px 14px; border: 1px solid var(--border); border-radius: 8px; background: var(--card); cursor: pointer; font-size: 15px; transition: background .18s; }
-.multi-choice-item:hover, .multi-choice-item.selected { background: var(--primary); color: #fff; }
+.multi-choice-list {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+  margin: 18px 0;
+}
+.multi-choice-item {
+  padding: 12px 22px;
+  border: 1.5px solid var(--border);
+  border-radius: 18px;
+  background: var(--card);
+  cursor: pointer;
+  font-size: 16px;
+  font-weight: 500;
+  transition: background .18s, border-color .18s, color .18s, box-shadow .18s;
+  box-shadow: 0 2px 8px rgba(0,0,0,.07);
+  outline: none;
+  margin: 0 auto;
+  min-width: 180px;
+  max-width: 420px;
+  text-align: center;
+}
+.multi-choice-item:hover, .multi-choice-item.selected {
+  background: var(--primary);
+  color: #fff;
+  border-color: var(--primary);
+  box-shadow: 0 4px 16px rgba(53,132,228,.13);
+}
+.multi-choice-item:focus-visible {
+  outline: 2px solid var(--primary);
+  outline-offset: 2px;
+}
 :root {
   --bg: #f6f8fa;
   --fg: #0b1320;
@@ -414,6 +459,11 @@ body.view-cards .app-tile .tile-short { font-size:13px; max-height:4.1em; overfl
 .install-stream { margin:4px 0 18px; border:1px solid var(--border); background:var(--card); border-radius:10px; padding:10px 12px; box-shadow:var(--shadow); max-width:760px; }
 .install-stream-head { display:flex; justify-content:flex-start; align-items:baseline; gap:18px; margin-bottom:6px; }
 .install-stream-meta { font-size:11px; opacity:.75; display:flex; gap:10px; font-variant-numeric:tabular-nums; letter-spacing:.3px; }
+#installStreamElapsed {
+  font-size: 13px;
+  font-weight: bold;
+  letter-spacing: 0.3px;
+}
 .install-stream-status { font-size:12px; font-weight:600; color:var(--primary); }
 .mini-link-btn { background:none; border:0; padding:0 4px; font-size:11px; cursor:pointer; color:var(--primary); text-decoration:underline; line-height:1.2; }
 .mini-link-btn:hover { opacity:.8; }

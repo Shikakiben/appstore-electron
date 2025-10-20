@@ -16,9 +16,12 @@ contextBridge.exposeInMainWorld('electronAPI', {
   desktopEnv: () => desktopEnv,
   systemLocale: () => systemLocale,
   installStart: (name) => ipcRenderer.invoke('install-start', name),
-  installCancel: (id) => ipcRenderer.invoke('install-cancel', id),
+  installCancel: (id) => ipcRenderer.invoke('install-cancel', id, id),
+  installSendChoice: (id, choice) => ipcRenderer.invoke('install-send-choice', id, choice),
   onInstallProgress: (cb) => ipcRenderer.on('install-progress', (e, msg) => cb && cb(msg)),
-  purgeIconsCache: () => ipcRenderer.invoke('purge-icons-cache')
+  purgeIconsCache: () => ipcRenderer.invoke('purge-icons-cache'),
+  getGpuPref: () => ipcRenderer.invoke('get-gpu-pref'),
+  setGpuPref: (val) => ipcRenderer.invoke('set-gpu-pref', val)
 });
 try {
   const lArg = process.argv.find(a => a.startsWith('--locale='));

@@ -1,3 +1,44 @@
+
+
+function initXtermLog() {
+  if (!xtermLogDiv) xtermLogDiv = document.getElementById('xtermLog');
+  if (!xtermLogDiv) return;
+  if (!xterm) {
+    try {
+      const { Terminal } = require('@xterm/xterm');
+      const { FitAddon } = require('@xterm/xterm-addon-fit');
+      xterm = new Terminal({
+        fontSize: 13,
+        fontFamily: 'monospace',
+        theme: { background: '#181c20' },
+        convertEol: true,
+        scrollback: 2000,
+        disableStdin: true,
+        cursorBlink: false
+      });
+      xtermFit = new FitAddon();
+      xterm.loadAddon(xtermFit);
+      xterm.open(xtermLogDiv);
+      window.addEventListener('resize', ()=>xtermFit.fit());
+      xtermFit.fit();
+    } catch (e) {
+      xterm = null;
+      xtermFit = null;
+      if (xtermLogDiv) xtermLogDiv.style.display = 'none';
+      if (installStreamLog) installStreamLog.style.display = '';
+      return;
+    }
+  } else {
+    xterm.clear();
+    xtermFit && xtermFit.fit();
+  }
+  xtermLogDiv.style.display = '';
+  if (installStreamLog) installStreamLog.style.display = 'none';
+}
+// --- xterm.js pour affichage terminal natif ---
+let xterm = null;
+let xtermFit = null;
+let xtermLogDiv = null;
 function getIconUrl(app) {
   return `appicon://${app}.png`;
 }
@@ -76,6 +117,7 @@ document.addEventListener('click', (e) => {
 const modeMenuBtn = document.getElementById('modeMenuBtn');
 const modeMenu = document.getElementById('modeMenu');
 const modeOptions = () => Array.from(document.querySelectorAll('.mode-option'));
+const disableGpuCheckbox = document.getElementById('disableGpuCheckbox');
 const state = {
   allApps: [], // [{name, installed}]
   filtered: [],
@@ -87,6 +129,25 @@ const state = {
   lastScrollY: 0,
   installed: new Set() // ensemble des noms installés (lowercase)
 };
+
+// --- Gestion accélération GPU ---
+if (disableGpuCheckbox && window.electronAPI && window.electronAPI.getGpuPref && window.electronAPI.setGpuPref) {
+  // Charger l'état au démarrage
+  window.electronAPI.getGpuPref().then(val => {
+    disableGpuCheckbox.checked = !!val;
+  });
+  disableGpuCheckbox.addEventListener('change', async () => {
+    const val = !!disableGpuCheckbox.checked;
+    await window.electronAPI.setGpuPref(val);
+    // Afficher un toast traduit et proposer de relancer l'app
+    showToast(val ? t('toast.gpuDisabled') : t('toast.gpuEnabled'));
+    setTimeout(() => {
+      if (confirm(t('confirm.gpuRestart'))) {
+        window.location.reload();
+      }
+    }, 1200);
+  });
+}
 
 // --- (Ré)ajout gestion changement de mode d'affichage ---
 function updateModeMenuUI() {
@@ -157,10 +218,12 @@ const detailsGalleryInner = document.getElementById('detailsGalleryInner');
 // Éléments streaming installation
 const installStream = document.getElementById('installStream');
 const installStreamStatus = document.getElementById('installStreamStatus');
+
 const installStreamElapsed = document.getElementById('installStreamElapsed');
-const installStreamLines = document.getElementById('installStreamLines');
-const installStreamLog = document.getElementById('installStreamLog');
-const installStreamToggle = document.getElementById('installStreamToggle');
+// Log, compteur de lignes et bouton log supprimés de l'UI
+const installProgressBar = document.getElementById('installStreamProgressBar');
+const installProgressPercentLabel = document.getElementById('installStreamProgressPercent');
+const installProgressEtaLabel = document.getElementById('installStreamEta');
 
 // Mémoire de la session d'installation en cours pour restauration après retour
 let activeInstallSession = {
@@ -426,7 +489,11 @@ const descriptionCache = new Map();
 const translations = {
   fr: {
     'toast.cancelRequested': 'Annulation demandée…',
-    'toast.uninstalling': 'Désinstallation de {name}…',
+    'settings.gpuTitle': 'Accélération GPU',
+    'settings.gpuLabel': "Désactiver l'accélération GPU (pour corriger les bugs graphiques)",
+    'toast.gpuDisabled': "L'accélération GPU sera désactivée au prochain démarrage.",
+    'toast.gpuEnabled': "L'accélération GPU sera activée au prochain démarrage.",
+    'confirm.gpuRestart': "Redémarrer l'application maintenant pour appliquer le changement d'accélération GPU ?",
     'updates.none': 'Aucune mise à jour nécessaire.',
     'updates.done': 'Mises à jour effectuées (détails dans la sortie).',
     'confirm.installTitle': "Confirmer l'installation",
@@ -535,7 +602,11 @@ const translations = {
   },
   en: {
     'toast.cancelRequested': 'Cancel requested…',
-    'toast.uninstalling': 'Uninstalling {name}…',
+    'settings.gpuTitle': 'GPU acceleration',
+    'settings.gpuLabel': 'Disable GPU acceleration (to fix graphics bugs)',
+    'toast.gpuDisabled': 'GPU acceleration will be disabled on next launch.',
+    'toast.gpuEnabled': 'GPU acceleration will be enabled on next launch.',
+    'confirm.gpuRestart': 'Restart the application now to apply the GPU acceleration change?',
     'updates.none': 'No update needed.',
     'updates.done': 'Updates done (see output for details).',
     'confirm.installTitle': "Confirm installation",
@@ -644,7 +715,12 @@ const translations = {
   },
   it: {
     'toast.cancelRequested': 'Annullamento richiesto…',
-    'toast.uninstalling': 'Disinstallazione di {name}…',
+    'settings.gpuTitle': 'Accelerazione GPU',
+    'settings.gpuLabel': 
+      'Disattiva accelerazione GPU (per correggere bug grafici)',
+    'toast.gpuDisabled': "L'accelerazione GPU sarà disabilitata al prossimo avvio.",
+    'toast.gpuEnabled': "L'accelerazione GPU sarà abilitata al prossimo avvio.",
+    'confirm.gpuRestart': "Riavviare l'applicazione ora per applicare la modifica dell'accelerazione GPU?",
     'updates.none': 'Nessun aggiornamento necessario.',
     'updates.done': 'Aggiornamenti completati (vedi dettagli nell’output).',
     'confirm.installTitle': "Conferma installazione",
@@ -790,7 +866,6 @@ function applyTranslations() {
   if (detailsInstallBtn) detailsInstallBtn.textContent = t('details.install');
   if (detailsUninstallBtn) detailsUninstallBtn.textContent = t('details.uninstall');
   if (installStreamStatus) installStreamStatus.textContent = t('install.status');
-  if (installStreamToggle) installStreamToggle.textContent = t('install.log');
   // Traduction générique de tous les éléments data-i18n et data-i18n-*
   const lang = getLangPref();
   // data-i18n (texte)
@@ -1288,7 +1363,9 @@ function showDetails(appName) {
     detailsIcon.onerror = () => { detailsIcon.src = 'https://raw.githubusercontent.com/Portable-Linux-Apps/Portable-Linux-Apps.github.io/main/icons/blank.png'; };
   }
   if (detailsName) {
-    if (app.installed) {
+    // Correction : si installation annulée, ne pas afficher comme installée
+    const isActuallyInstalled = app.installed && !(activeInstallSession && activeInstallSession.name === app.name && activeInstallSession.id && !activeInstallSession.done);
+    if (isActuallyInstalled) {
       detailsName.innerHTML = `${label}${version ? ' · ' + version : ''} <span class="installed-badge" aria-label="Installée" title="Installée">✓</span>`;
     } else {
       detailsName.textContent = version ? `${label} · ${version}` : label;
@@ -1318,23 +1395,13 @@ function showDetails(appName) {
   if (installStream) {
     if (activeInstallSession.id && !activeInstallSession.done && activeInstallSession.name === app.name) {
       installStream.hidden = false;
-      if (installStreamLog) installStreamLog.textContent = activeInstallSession.lines.join('\n') + (activeInstallSession.lines.length?'\n':'');
-      if (installStreamToggle) {
-        installStreamToggle.setAttribute('aria-expanded','false');
-        installStreamToggle.textContent = t('install.log');
-        installStreamLog.hidden = true;
-      }
-      if (installStreamLines) installStreamLines.textContent = activeInstallSession.lines.length + (activeInstallSession.lines.length>1?' lignes':' ligne');
       if (installStreamElapsed) {
         const secs = Math.round((performance.now()-activeInstallSession.start)/1000);
         installStreamElapsed.textContent = secs + 's';
       }
-      if (installStreamStatus) installStreamStatus.textContent = t('install.status');
-      // Empêcher relance
-  if (detailsInstallBtn) { detailsInstallBtn.disabled = false; detailsInstallBtn.classList.remove('loading'); }
+      if (detailsInstallBtn) { detailsInstallBtn.disabled = false; detailsInstallBtn.classList.remove('loading'); }
     } else {
       installStream.hidden = true;
-      if (installStreamLog) installStreamLog.textContent='';
     }
   }
   if (detailsUninstallBtn) {
@@ -1563,6 +1630,101 @@ window.addEventListener('keydown', (e) => {
   if (last && state.allApps.find(a=>a.name===last)) {
     showDetails(last);
   }
+
+  // Gestion du prompt de choix interactif pendant installation
+  window.electronAPI?.onInstallProgress?.((data) => {
+    console.log('[DEBUG] IPC install-progress reçu:', JSON.stringify(data));
+    // Initialiser la session d'installation à la réception de 'start'
+    if (data.kind === 'start' && data.id) {
+      window.activeInstallSession = { id: data.id };
+    }
+    if (data.kind === 'choice-prompt') {
+      // Supprimer toute boîte de dialogue de choix existante
+      document.querySelectorAll('.choice-dialog').forEach(e => e.remove());
+      // Créer un dialogue simple
+      const dlg = document.createElement('div');
+      dlg.className = 'choice-dialog';
+      dlg.style.position = 'fixed';
+      dlg.style.top = '50%';
+      dlg.style.left = '50%';
+      dlg.style.transform = 'translate(-50%, -50%)';
+      dlg.style.zIndex = '9999';
+      dlg.style.background = '#fff';
+      dlg.style.boxShadow = '0 2px 16px rgba(0,0,0,0.18)';
+      dlg.style.borderRadius = '10px';
+      dlg.style.padding = '24px 32px';
+      dlg.style.minWidth = '320px';
+      let optionsHtml;
+      if (data.options.length > 8) {
+        // Affichage en tableau 2 colonnes
+        const colCount = 2;
+        const rowCount = Math.ceil(data.options.length / colCount);
+        optionsHtml = '<table class="multi-choice-table"><tbody>';
+        for (let r = 0; r < rowCount; r++) {
+          optionsHtml += '<tr>';
+          for (let c = 0; c < colCount; c++) {
+            const idx = r + c * rowCount;
+            if (idx < data.options.length) {
+              optionsHtml += `<td><button class="multi-choice-item" data-choice="${idx+1}">${data.options[idx]}</button></td>`;
+            } else {
+              optionsHtml += '<td></td>';
+            }
+          }
+          optionsHtml += '</tr>';
+        }
+        optionsHtml += '</tbody></table>';
+      } else {
+        // Affichage classique en liste
+        optionsHtml = `<ul>${data.options.map((opt,i)=>`<li><button class="multi-choice-item" data-choice="${i+1}">${opt}</button></li>`).join('')}</ul>`;
+      }
+      dlg.innerHTML = `<div class="choice-dialog-inner" style="user-select:text;"><h3>${data.prompt}</h3>${optionsHtml}</div>`;
+      document.body.appendChild(dlg);
+      dlg.querySelectorAll('button[data-choice]').forEach(btn => {
+        btn.addEventListener('click', async () => {
+          const choice = btn.getAttribute('data-choice');
+          // Fermer la boîte de dialogue immédiatement
+          dlg.remove();
+          // Envoi du choix au backend
+          const installId = data.id;
+          if (!installId) {
+            window.showCopiableError('Erreur : identifiant d’installation manquant.');
+            return;
+          }
+          console.log('[CHOICE-CLICK] Envoi du choix', choice, 'pour id', installId);
+          try {
+            await window.electronAPI.installSendChoice(installId, choice);
+          } catch(e) {
+            window.showCopiableError('Erreur lors de l’envoi du choix : ' + (e?.message || e));
+          }
+        });
+      });
+    }
+    // Fermer le prompt si l'installation est terminée ou annulée
+    if (data.kind === 'done' || data.kind === 'cancelled' || data.kind === 'error') {
+      document.querySelectorAll('.choice-dialog').forEach(e => e.remove());
+    }
+  });
+
+// Fonction utilitaire globale pour afficher une erreur copiable
+window.showCopiableError = function(msg) {
+  const errDlg = document.createElement('div');
+  errDlg.style.position = 'fixed';
+  errDlg.style.top = '50%';
+  errDlg.style.left = '50%';
+  errDlg.style.transform = 'translate(-50%, -50%)';
+  errDlg.style.zIndex = '10000';
+  errDlg.style.background = '#fff';
+  errDlg.style.boxShadow = '0 2px 16px rgba(0,0,0,0.18)';
+  errDlg.style.borderRadius = '10px';
+  errDlg.style.padding = '24px 32px';
+  errDlg.style.minWidth = '320px';
+  errDlg.innerHTML = `<div style="margin-bottom:12px;font-weight:bold;">Erreur</div><textarea style="width:100%;height:80px;resize:none;user-select:text;">${msg}</textarea><div style="text-align:right;margin-top:12px;"><button>Fermer</button></div>`;
+  document.body.appendChild(errDlg);
+  errDlg.querySelector('button').onclick = () => errDlg.remove();
+  const ta = errDlg.querySelector('textarea');
+  ta.focus();
+  ta.select();
+};
 })();
 
 tabs.forEach(tab => {
@@ -1571,6 +1733,8 @@ tabs.forEach(tab => {
     tab.classList.add('active');
     state.activeCategory = tab.getAttribute('data-category') || 'all';
     applySearch();
+    // Fermer tout prompt de choix interactif lors du changement d’onglet
+    document.querySelectorAll('.choice-dialog').forEach(e => e.remove());
     const isUpdatesTab = state.activeCategory === 'updates';
     const isAdvancedTab = state.activeCategory === 'advanced';
     if (updatesPanel) updatesPanel.hidden = !isUpdatesTab;
@@ -1913,11 +2077,16 @@ lightbox?.addEventListener('click', (e) => {
 
 
 // --- Streaming installation (Étapes 1 & 2) ---
+
+
 let currentInstallId = null;
 let currentInstallStart = 0;
 let currentInstallLines = 0;
+let installElapsedInterval = null;
+
 
 function startStreamingInstall(name){
+  initXtermLog();
   if (!window.electronAPI.installStart) {
     return Promise.reject(new Error('Streaming non supporté'));
   }
@@ -1925,17 +2094,27 @@ function startStreamingInstall(name){
   document.querySelectorAll('.app-tile.busy').forEach(t => t.classList.remove('busy'));
   const activeTile = document.querySelector(`.app-tile[data-app="${CSS.escape(name)}"]`);
   if (activeTile) activeTile.classList.add('busy');
-  if (installStream) {
-    installStream.hidden = false;
-    if (installStreamStatus) installStreamStatus.textContent = t('install.starting') || t('install.status');
-    if (installStreamLog) { installStreamLog.textContent=''; installStreamLog.hidden = true; }
-    if (installStreamToggle) { installStreamToggle.setAttribute('aria-expanded','false'); installStreamToggle.textContent = t('install.log'); }
-    if (installStreamLines) installStreamLines.textContent='0 lignes';
-    if (installStreamElapsed) installStreamElapsed.textContent='0s';
-  }
-  currentInstallStart = performance.now();
+    if (installStream) {
+      installStream.hidden = false;
+      if (installStreamElapsed) installStreamElapsed.textContent='0s';
+      if (installProgressPercentLabel) installProgressPercentLabel.textContent = '';
+      if (installProgressBar) {
+        installProgressBar.value = 0;
+        installProgressBar.max = 100;
+        installProgressBar.removeAttribute('hidden');
+      }
+    }
+  currentInstallStart = Date.now();
   currentInstallLines = 0;
   activeInstallSession = { id: null, name, start: currentInstallStart, lines: [], done: false, success: null, code: null };
+  // Démarrer le vrai chronomètre temps réel
+  if (installElapsedInterval) clearInterval(installElapsedInterval);
+  installElapsedInterval = setInterval(() => {
+    if (installStreamElapsed) {
+      const secs = Math.floor((Date.now() - currentInstallStart) / 1000);
+      installStreamElapsed.textContent = secs + 's';
+    }
+  }, 1000);
   return window.electronAPI.installStart(name).then(res => {
     if (res && res.error){
       showToast(res.error);
@@ -1955,56 +2134,58 @@ if (window.electronAPI.onInstallProgress){
   window.electronAPI.onInstallProgress(msg => {
     if (!msg) return;
     if (currentInstallId && msg.id !== currentInstallId) return; // ignorer autres installations (future multi support)
+    if (msg.kind === 'line') {
+      // --- Extraction du pourcentage de progression depuis le flux ---
+      if (msg.raw !== undefined) {
+        // Cherche un motif du type "  6%[>" ou " 99%[" ou "100%["
+        const percentMatch = msg.raw.match(/(\d{1,3})%\[/);
+        if (percentMatch) {
+          let percent = parseInt(percentMatch[1], 10);
+          if (!isNaN(percent)) {
+            if (installProgressPercentLabel) installProgressPercentLabel.textContent = percent + '%';
+            if (installProgressBar) installProgressBar.value = percent;
+          }
+        }
+        // Extraction brute du temps restant (formats "eta ...", "ETA ...", "Temps restant ...", "remaining ...")
+        let eta = '';
+        let m = msg.raw.match(/(?:ETA|eta|Temps restant|remaining)[\s:]+([^\s][^\r\n]*)/i);
+        if (m) eta = m[1].trim();
+        if (installProgressEtaLabel) installProgressEtaLabel.textContent = eta ? `⏳ ${eta}` : '';
+      }
+      // (Le temps écoulé est maintenant géré par le chronomètre JS)
+      return;
+    }
     switch(msg.kind){
       case 'start':
         if (installStreamStatus) installStreamStatus.textContent = t('install.status');
-        // Assurer synchro du bouton détails si rendu avant ID
         refreshAllInstallButtons();
-        break;
-      case 'line':
-        currentInstallLines++;
-        if (installStreamLog){
-          installStreamLog.textContent += msg.line + '\n';
-          if (!installStreamLog.hidden) installStreamLog.scrollTop = installStreamLog.scrollHeight;
-        }
-        if (activeInstallSession && activeInstallSession.id === currentInstallId) {
-          activeInstallSession.lines.push(msg.line);
-          if (activeInstallSession.lines.length > 1200) {
-            // Limite mémoire: garder dernières 1200 lignes
-            activeInstallSession.lines = activeInstallSession.lines.slice(-1200);
-          }
-        }
-        if (installStreamLines) installStreamLines.textContent = currentInstallLines + (currentInstallLines>1?' lignes':' ligne');
-        if (installStreamElapsed){
-          const secs = Math.round((performance.now()-currentInstallStart)/1000);
-          installStreamElapsed.textContent = secs + 's';
-        }
+        if (installProgressBar) installProgressBar.value = 0;
         break;
       case 'error':
         if (installStreamStatus) installStreamStatus.textContent = t('install.error') || 'Erreur';
         detailsInstallBtn?.classList.remove('loading');
         detailsInstallBtn?.removeAttribute('disabled');
         setTimeout(()=> { if (installStream) installStream.hidden = true; }, 5000);
+        if (installProgressBar) installProgressBar.value = 0;
+        if (installElapsedInterval) { clearInterval(installElapsedInterval); installElapsedInterval = null; }
         break;
       case 'cancelled':
         if (installStreamStatus) installStreamStatus.textContent = t('install.cancelled') || 'Annulée';
         if (detailsInstallBtn) {
           detailsInstallBtn.classList.remove('loading');
           detailsInstallBtn.disabled = false;
-          detailsInstallBtn.textContent = t('details.install');
-          detailsInstallBtn.setAttribute('data-action','install');
         }
-        if (activeInstallSession && activeInstallSession.id === currentInstallId) {
-          activeInstallSession.done = true;
-        }
-        // Masquer le flux après court délai
-        setTimeout(()=> { if (installStream) installStream.hidden = true; }, 1200);
-        // Enchaîner la prochaine installation file (si existe)
-        setTimeout(()=> { processNextInstall(); }, 500);
-        refreshAllInstallButtons();
+        if (installProgressBar) installProgressBar.value = 0;
+        if (installElapsedInterval) { clearInterval(installElapsedInterval); installElapsedInterval = null; }
+        setTimeout(()=> { if (installStream) installStream.hidden = true; }, 2000);
+        // (Correction annulée : on ne rafraîchit plus la liste ni les détails ici)
         break;
       case 'done':
-        if (installStreamStatus) installStreamStatus.textContent = msg.success ? (t('install.done') || 'Terminé') : (t('install.failed', {code: msg.code}) || ('Échec ('+ msg.code +')'));
+        if (installStreamStatus) installStreamStatus.textContent = t('install.done') || 'Terminé';
+        if (installProgressBar) installProgressBar.value = 100;
+        if (installElapsedInterval) { clearInterval(installElapsedInterval); installElapsedInterval = null; }
+        setTimeout(()=> { if (installStream) installStream.hidden = true; }, 2000);
+        // --- Suite logique d'après l'ancien code (fusionner les deux 'done') ---
         detailsInstallBtn?.classList.remove('loading');
         detailsInstallBtn?.removeAttribute('disabled');
         if (activeInstallSession && activeInstallSession.id === currentInstallId) {
@@ -2012,46 +2193,27 @@ if (window.electronAPI.onInstallProgress){
           activeInstallSession.success = msg.success;
           activeInstallSession.code = msg.code;
         }
-        // Ouvrir automatiquement le log si échec
-        if (!msg.success && installStreamLog && installStreamToggle) {
-          installStreamLog.hidden = false;
-          installStreamToggle.setAttribute('aria-expanded','true');
-          installStreamToggle.textContent='Masquer le log';
-          requestAnimationFrame(()=> installStreamLog.scrollTop = installStreamLog.scrollHeight);
-        }
-        // rafraîchir liste + détails
+        // Plus de gestion du log ou du bouton log ici
         loadApps().then(()=> {
           if (msg.success) {
             if (msg.name) showDetails(msg.name); else if (detailsInstallBtn?.getAttribute('data-name')) showDetails(detailsInstallBtn.getAttribute('data-name'));
           }
-          // Nettoyer busy/queue sur la tuile
           if (msg.name) {
             const tile = document.querySelector(`.app-tile[data-app="${CSS.escape(msg.name)}"]`);
             if (tile) tile.classList.remove('busy');
           }
           refreshQueueUI();
-          // Actualiser tous les boutons
           refreshAllInstallButtons();
         });
         setTimeout(()=> { if (installStream) installStream.hidden = true; }, 3500);
-        // Lancer l'installation suivante (léger délai UI)
         setTimeout(()=> processNextInstall(), 450);
         break;
     }
   });
 }
+// Ancien bloc switch/case dupliqué supprimé : tout est géré dans le switch précédent
 
-// Toggle manuel log
-if (installStreamToggle && installStreamLog){
-  installStreamToggle.addEventListener('click', () => {
-    const expanded = installStreamToggle.getAttribute('aria-expanded') === 'true';
-    const next = !expanded;
-    installStreamToggle.setAttribute('aria-expanded', String(next));
-    installStreamToggle.textContent = next ? (t('install.hideLog') || 'Masquer le log') : t('install.log');
-    installStreamLog.hidden = !next;
-    if (next) requestAnimationFrame(()=> installStreamLog.scrollTop = installStreamLog.scrollHeight);
-  });
-}
+
 
 
 

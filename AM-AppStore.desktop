@@ -3,5 +3,6 @@ Type=Application
 Name=App Manager
 Exec=/home/moi/appstore-electron/AM-AppStore-Test/start-appstore.sh
 Icon=/home/moi/appstore-electron/AM-AppStore-Test/app-icon.png
+StartupWMClass=App manager
 Terminal=false
 Categories=Utility;

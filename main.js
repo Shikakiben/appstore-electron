@@ -1,21 +1,82 @@
+
 const { app, BrowserWindow, ipcMain, Menu, protocol, shell } = require('electron');
-// ...existing code...
+// --- Gestion accélération GPU (doit être AVANT app.whenReady) ---
+const fs = require('fs');
+const path = require('path');
+let disableGpuPref = false;
+try {
+  const prefPath = path.join(app.getPath('userData'), 'gpu-pref.json');
+  if (fs.existsSync(prefPath)) {
+    const raw = fs.readFileSync(prefPath, 'utf8');
+    disableGpuPref = JSON.parse(raw).disableGpu === true;
+  }
+} catch(_){}
+if (disableGpuPref && typeof app.disableHardwareAcceleration === 'function') {
+  app.disableHardwareAcceleration();
+}
+
+const errorLogPath = path.join(app.getPath('userData'), 'error.log');
+
+function logGlobalError(err) {
+  const msg = `[${new Date().toISOString()}] ${err && err.stack ? err.stack : err}`;
+  try { fs.appendFileSync(errorLogPath, msg + '\n'); } catch(e) {}
+  console.error(msg);
+}
+
+process.on('uncaughtException', logGlobalError);
+process.on('unhandledRejection', logGlobalError);
+// Vérifier si app.setName ou équivalent existe et remplacer par 'App Manager' si besoin
+if (app.setName) {
+  app.setName('App Manager');
+}
+
+// IPC pour lire/écrire la préférence GPU
+ipcMain.handle('get-gpu-pref', async () => {
+  try {
+    const prefPath = path.join(app.getPath('userData'), 'gpu-pref.json');
+    if (fs.existsSync(prefPath)) {
+      const raw = fs.readFileSync(prefPath, 'utf8');
+      return JSON.parse(raw).disableGpu === true;
+    }
+  } catch(_){}
+  return false;
+});
+ipcMain.handle('set-gpu-pref', async (_event, val) => {
+  try {
+    const prefPath = path.join(app.getPath('userData'), 'gpu-pref.json');
+    fs.writeFileSync(prefPath, JSON.stringify({ disableGpu: !!val }));
+    return { ok:true };
+  } catch(e){ return { ok:false, error: e.message||String(e) }; }
+});
 
 // Handler IPC pour envoyer le choix utilisateur lors d'une installation à choix multiples
 ipcMain.handle('install-send-choice', async (event, installId, choice) => {
+  console.log('[IPC] install-send-choice reçu pour id:', installId, 'choix:', choice);
   const child = activeInstalls.get(installId);
-  if (!child) return { ok:false, error:'Processus introuvable' };
+  if (!child) {
+    console.warn('[IPC] Aucun process actif pour id:', installId);
+    return { ok:false, error:'Processus introuvable' };
+  }
   try {
     // Envoyer le choix au processus (stdin)
-    child.stdin.write(choice + '\n');
+    console.log(`[INSTALL-CHOICE] Avant write pour id ${installId} :`, choice, 'child:', !!child);
+    child.write(choice + '\n');
+    if (child._pty && typeof child._pty.flush === 'function') {
+      try { child._pty.flush(); } catch(_) {}
+    }
+    // Loguer la sortie pty après envoi du choix
+    setTimeout(() => {
+      console.log('[DEBUG] 1s après write, process toujours actif:', !!child);
+    }, 1000);
+    console.log(`[INSTALL-CHOICE] Après write pour id ${installId}`);
     return { ok:true };
   } catch(e){
+    console.error('[IPC] Erreur lors de l’envoi du choix:', e);
     return { ok:false, error: e.message || 'Erreur envoi choix' };
   }
 });
-const path = require('path');
 const { exec, spawn } = require('child_process');
-const fs = require('fs');
+// ...existing code...
 const undici = require('undici');
 const fetch = undici.fetch;
 // AbortController fallback: prefer global, then undici.AbortController, then optional polyfill
@@ -474,44 +535,103 @@ ipcMain.handle('install-start', async (event, name) => {
   const startedAt = Date.now();
   let stdoutRemainder = '';
   let stderrRemainder = '';
-  const child = spawn(pm, ['-i', name]);
+  const pty = require('node-pty');
+  const env = Object.assign({}, process.env, {
+    TERM: 'xterm',
+    COLS: '80',
+    ROWS: '30',
+    FORCE_COLOR: '1',
+    // Ajoute d'autres variables si besoin
+  });
+  const child = pty.spawn(pm, ['-i', name], {
+    name: 'xterm-color',
+    cols: 80,
+    rows: 30,
+    cwd: process.cwd(),
+    env
+  });
   activeInstalls.set(id, child);
+  console.log('[ACTIVE-INSTALLS] Ajout process id:', id);
   const wc = event.sender;
   const send = (payload) => { try { wc.send('install-progress', Object.assign({ id }, payload)); } catch(_) {} };
   send({ kind:'start', name });
   const killTimer = setTimeout(() => { try { child.kill('SIGTERM'); } catch(_){} }, 10*60*1000); // 10 min sécurité
   function flushLines(chunk, isErr){
-  // Log chaque chunk reçu du processus
-  console.log('flushLines:', chunk.toString());
+    // Log chaque chunk reçu du processus
     const txt = chunk.toString();
     output += txt;
+    // Envoi du chunk brut pour affichage terminal fidèle
+    send({ kind: 'line', raw: txt, stream: isErr ? 'stderr' : 'stdout' });
+    // Ancien découpage en lignes pour prompts interactifs
     let buffer = (isErr ? stderrRemainder : stdoutRemainder) + txt;
     const lines = buffer.split(/\r?\n/);
     if (lines.length > 1) {
       // conserver la dernière partielle
       if (isErr) stderrRemainder = lines.pop(); else stdoutRemainder = lines.pop();
-      for (const l of lines) {
-        const line = l.trim();
+      for (let idx = 0; idx < lines.length; idx++) {
+        const line = lines[idx].trim();
         if (!line) continue;
-        send({ kind:'line', line, stream: isErr ? 'stderr' : 'stdout' });
+        // Détection du prompt de choix interactif (évite de matcher la ligne concaténée avec la réponse)
+        if ((/Choose which version|Which version you choose.*press ENTER|Please choose/i.test(line)) && !/\?\d+$/.test(line)) {
+          // Collecter toutes les options numérotées dans les lignes suivantes jusqu'à la fin du buffer
+          const options = [];
+          for (let j = idx + 1; j < lines.length; j++) {
+            let l = lines[j].trim();
+            if (!l || /^[-=]+$/.test(l)) continue;
+            if (l.includes('|')) {
+              // Colonnes détectées : logique inchangée
+              const parts = l.split('|').map(p => p.trim());
+              parts.forEach(part => {
+                if (/^\s*\d+[\.|\)]/.test(part)) options.push(part);
+              });
+            } else {
+              // Pas de colonne : possibilité d'ajouter la ligne suivante
+              if (/^\s*\d+[\.|\)]/.test(l)) {
+                let opt = l;
+                // Vérifier si la ligne suivante existe et ne commence pas par un chiffre
+                if (j + 1 < lines.length) {
+                  let next = lines[j + 1].trim();
+                  if (next && !/^\s*\d+[\.|\)]/.test(next) && !/^[-=]+$/.test(next)) {
+                    opt += ' ' + next;
+                    j++; // Sauter la ligne suivante
+                  }
+                }
+                options.push(opt);
+              }
+            }
+          }
+          // Trier les options par numéro croissant
+          options.sort((a, b) => {
+            const na = parseInt(a.match(/\d+/)?.[0] || '0', 10);
+            const nb = parseInt(b.match(/\d+/)?.[0] || '0', 10);
+            return na - nb;
+          });
+          console.log('[CHOICE-PROMPT] prompt:', line, 'options:', options);
+          send({ kind:'choice-prompt', options, prompt: line });
+        }
       }
     } else {
       if (isErr) stderrRemainder = lines[0]; else stdoutRemainder = lines[0];
     }
   }
-  child.stdout.on('data', d => flushLines(d, false));
-  child.stderr.on('data', d => flushLines(d, true));
-  child.on('error', (err) => {
+  // node-pty : toute la sortie arrive sur onData (stdout+stderr)
+  child.onData((d) => flushLines(d, false));
+  child.onExit((evt) => {
     clearTimeout(killTimer);
-    send({ kind:'error', message: err.message || 'Erreur processus' });
-  });
-  child.on('close', (code) => {
-    clearTimeout(killTimer);
+    // Log de sortie du process
+    console.log('[PTY] Process terminé pour id:', id, 'code:', evt.exitCode, 'durée:', (Date.now() - startedAt), 'ms');
     // Émettre éventuelles dernières lignes partielles
-    if (stdoutRemainder.trim()) send({ kind:'line', line: stdoutRemainder.trim(), stream:'stdout' });
-    if (stderrRemainder.trim()) send({ kind:'line', line: stderrRemainder.trim(), stream:'stderr' });
-  activeInstalls.delete(id);
+    if (stdoutRemainder && stdoutRemainder.trim()) send({ kind:'line', line: stdoutRemainder.trim(), stream:'stdout' });
+    if (stderrRemainder && stderrRemainder.trim()) send({ kind:'line', line: stderrRemainder.trim(), stream:'stderr' });
+    // Vérifier que le process est bien terminé avant suppression
+    if (activeInstalls.has(id)) {
+      activeInstalls.delete(id);
+      console.log('[ACTIVE-INSTALLS] Suppression process id:', id);
+    } else {
+      console.warn('[ACTIVE-INSTALLS] Tentative de suppression d’un process déjà supprimé pour id:', id);
+    }
     const duration = Date.now() - startedAt;
+    const code = evt.exitCode;
     const success = code === 0;
     send({ kind:'done', code, success, duration, output });
   });

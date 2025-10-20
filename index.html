@@ -44,6 +44,10 @@
             <div class="settings-title" data-i18n="settings.links">Liens</div>
             <label style="font-size:13px;"><input type="checkbox" id="openExternalLinksCheckbox"> <span data-i18n="settings.openExternal">Ouvrir les liens dans le navigateur externe</span></label>
           </div>
+          <div class="settings-group">
+            <div class="settings-title" data-i18n="settings.gpuTitle">Accélération GPU</div>
+            <label style="font-size:13px;"><input type="checkbox" id="disableGpuCheckbox"> <span data-i18n="settings.gpuLabel">Désactiver l'accélération GPU (pour corriger les bugs graphiques)</span></label>
+          </div>
           <div class="settings-separator"></div>
           <div class="settings-group">
             <div class="settings-title" data-i18n="settings.coming">À venir</div>
@@ -139,10 +143,15 @@
         </div>
         <div id="installStream" class="install-stream" hidden>
           <div class="install-stream-head">
-            <div class="install-stream-status" id="installStreamStatus" data-i18n="install.status">En cours…</div>
-            <div class="install-stream-meta"><span id="installStreamElapsed">0s</span> – <span id="installStreamLines" data-i18n="install.lines">0 lignes</span> · <button id="installStreamToggle" class="mini-link-btn" aria-expanded="false" type="button" data-i18n="install.log">Afficher le log</button></div>
+            <div class="install-stream-meta">
+              <span id="installStreamElapsed">0s</span>
+            </div>
+            <div class="install-stream-progressbar-wrapper" style="width:100%;margin-top:8px;">
+              <span id="installStreamProgressPercent" style="margin-right:10px;font-weight:bold;font-size:13px;"></span>
+              <progress id="installStreamProgressBar" value="0" max="100" style="vertical-align:middle;width:160px;height:14px;"></progress>
+              <span id="installStreamEta" style="margin-left:12px;font-size:13px;color:var(--muted);"></span>
+            </div>
           </div>
-            <pre id="installStreamLog" class="install-stream-log" aria-label="Journal installation" tabindex="0" hidden></pre>
         </div>
         <div class="details-long-wrapper">
           <h3 class="details-section-title" data-i18n="details.desc">Description</h3>
